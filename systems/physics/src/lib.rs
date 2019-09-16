@@ -18,7 +18,7 @@ extern crate wascap_guest as guest;
 use guest::prelude::*;
 use serde_json::Value;
 use stacktrader_types as trader;
-use trader::components;
+use trader::components::*;
 
 call_handler!(handle_call);
 
@@ -43,30 +43,43 @@ fn handle_frame(
     ));
     let bodyvec = msg.unwrap().body;
 
-    // This frame should have two objects: "position" and "velocity"
-    let (_pos, _vel) = extract_frame(&bodyvec)?;
+    // This frame should have three objects: "elapsed", "position" and "velocity"
+    let (_elapsed, _pos, _vel) = extract_frame(&bodyvec)?;
 
     Ok(vec![])
 }
 
-/// Extracts the position and velocity values out of the aggregate frame
-fn extract_frame(frame_raw: &[u8]) -> Result<(components::Position, components::Velocity)> {
+/// Extracts the elapsed time, position and velocity values out of the aggregate frame
+fn extract_frame(frame_raw: &[u8]) -> Result<(u64, Position, Velocity)> {
     let v: Value = serde_json::from_slice(frame_raw)?;
 
+    let elapsed = serde_json::from_value(v["elapsed"].clone())?;
     let pos = serde_json::from_value(v["position"].clone())?;
     let vel = serde_json::from_value(v["velocity"].clone())?;
 
-    Ok((pos, vel))
+    Ok((elapsed, pos, vel))
+}
+
+/// Calculates a new position based on a current position and velocity over an elapsed time
+fn new_position(elapsed: u64, pos: &Position, vel: &Velocity) -> Result<Position> {
+    let multiplier = (u64::from(vel.mag) * elapsed) as f64 / 3600000.0;
+    Ok(Position {
+        x: pos.x + vel.ux * multiplier,
+        y: pos.y + vel.uy * multiplier,
+        z: pos.z + vel.uz * multiplier,
+    })
 }
 
 #[cfg(test)]
 mod test {
     use super::extract_frame;
+    use super::new_position;
 
     #[test]
     fn test_extract_frame() {
         let data = br#"
         {
+            "elapsed": 16,
             "position": {
                 "x": 1,
                 "y": 2.5,
@@ -81,9 +94,47 @@ mod test {
         }
         "#;
 
-        let (pos, vel) = extract_frame(data).unwrap();
+        let (elapsed, pos, vel) = extract_frame(data).unwrap();
+        assert_eq!(elapsed, 16);
         assert_eq!(pos.x, 1.0);
         assert_eq!(pos.y, 2.5);
         assert_eq!(vel.mag, 7500);
+    }
+
+    #[test]
+    fn test_new_position() {
+        let data = br#"
+        {
+            "elapsed": 16,
+            "position": {
+                "x": 1,
+                "y": 30,
+                "z": -10
+            },
+            "velocity": {
+                "mag": 7200,
+                "ux": 1.0,
+                "uy": 1.0,
+                "uz": 1.0
+            }
+        }
+        "#;
+
+        let (elapsed, pos, vel) = extract_frame(data).unwrap();
+        assert_eq!(elapsed, 16);
+        assert_eq!(pos.x, 1.0);
+        assert_eq!(pos.y, 30.0);
+        assert_eq!(pos.z, -10.0);
+        assert_eq!(vel.mag, 7200);
+
+        let new_pos = new_position(elapsed, &pos, &vel).unwrap();
+        assert_eq!(new_pos.x, 1.032);
+        assert_eq!(new_pos.y, 30.032);
+        assert_eq!(new_pos.z, -9.968);
+
+        let new_pos_two = new_position(elapsed, &new_pos, &vel).unwrap();
+        assert_eq!(new_pos_two.x, 1.064);
+        assert_eq!(new_pos_two.y, 30.064);
+        assert_eq!(new_pos_two.z, -9.936);
     }
 }
