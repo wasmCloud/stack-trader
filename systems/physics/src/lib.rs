@@ -26,6 +26,8 @@ call_handler!(handle_call);
 
 const NO_MESSAGE: &str = "(no message)";
 const REGISTRY_SUBJECT: &str = "decs.system.registry";
+const POSITION: &str = "position";
+const VELOCITY: &str = "velocity";
 
 pub fn handle_call(ctx: &CapabilitiesContext, operation: &str, msg: &[u8]) -> CallResult {
     match operation {
@@ -62,16 +64,16 @@ fn handle_ping(
 ) -> CallResult {
     let payload = System {
         name: "physics".to_string(),
-        framerate: 60,
-        components: vec!["Position".to_string(), "Velocity".to_string()],
+        framerate: 1,
+        components: vec![POSITION.to_string(), VELOCITY.to_string()],
     };
     let ref reply_to = match msg.reply_to.len() {
-        0 => format!("decs.{}", REGISTRY_SUBJECT),
+        0 => format!("{}.replies", REGISTRY_SUBJECT),
         _ => msg.reply_to,
     };
     if let Err(_) = ctx
         .msg()
-        .publish(reply_to, None, &serde_json::to_vec(&payload).unwrap())
+        .publish(reply_to, None, &serde_json::to_vec(&payload)?)
     {
         return Err("Error publishing message".into());
     };
@@ -88,27 +90,29 @@ fn handle_frame(
         return Err("Unknown message subject received".into());
     }
 
-    let data = extract_frame(&msg.body);
-    if let Err(_) = data {
-        return Err("Did not receive components needed for frame update".into());
-    }
+    match extract_frame(&msg.body) {
+        Ok(v) => {
+            let (entity, elapsed, pos, vel) = v;
+            if vel.mag == 0 {
+                return Ok(vec![]);
+            } else if vel.ux == 0.0 && vel.uy == 0.0 && vel.uz == 0.0 {
+                return Err("Bad target vector".into());
+            }
 
-    let (entity, elapsed, pos, vel) = data.unwrap();
-    if vel.mag == 0 {
-        return Ok(vec![]);
-    } else if vel.ux == 0.0 && vel.uy == 0.0 && vel.uz == 0.0 {
-        return Err("Bad target vector".into());
-    }
-
-    if let Ok(new_position) = new_position(elapsed, &pos, &vel) {
-        let publish_subject = &format!("decs.{}.{}.position.put", subject[2], entity);
-        if let Err(_) = ctx.msg().publish(
-            publish_subject,
-            None,
-            &serde_json::to_vec(&new_position).unwrap(),
-        ) {
-            return Err("Error publishing message".into());
-        };
+            if let Ok(new_position) = new_position(elapsed, &pos, &vel) {
+                let publish_subject = &format!("decs.{}.{}.position.put", subject[2], entity);
+                if let Err(_) = ctx.msg().publish(
+                    publish_subject,
+                    None,
+                    &serde_json::to_vec(&new_position)?,
+                ) {
+                    return Err("Error publishing message".into());
+                };
+            };
+        }
+        Err(_) => {
+            return Err("Did not receive components needed for frame update".into());
+        }        
     };
     Ok(vec![])
 }
