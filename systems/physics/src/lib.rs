@@ -28,6 +28,8 @@ const NO_MESSAGE: &str = "(no message)";
 const REGISTRY_SUBJECT: &str = "decs.system.registry";
 const POSITION: &str = "position";
 const VELOCITY: &str = "velocity";
+const FRAMERATE: u32 = 1;
+const SYSTEM_NAME: &str = "physics";
 
 pub fn handle_call(ctx: &CapabilitiesContext, operation: &str, msg: &[u8]) -> CallResult {
     match operation {
@@ -58,24 +60,22 @@ fn handle_message(
 }
 
 /// Receives messages on the subject `system.registry` and replies with physics system metadata
-fn handle_ping(
-    ctx: &CapabilitiesContext,
-    msg: messaging::BrokerMessage,
-) -> CallResult {
+fn handle_ping(ctx: &CapabilitiesContext, msg: messaging::BrokerMessage) -> CallResult {
     let payload = System {
-        name: "physics".to_string(),
-        framerate: 1,
+        name: SYSTEM_NAME.to_string(),
+        framerate: FRAMERATE,
         components: vec![POSITION.to_string(), VELOCITY.to_string()],
     };
-    let ref reply_to = match msg.reply_to.len() {
-        0 => format!("{}.replies", REGISTRY_SUBJECT),
-        _ => msg.reply_to,
+    let reply_to = if msg.reply_to.is_empty() {
+        format!("{}.replies", REGISTRY_SUBJECT)
+    } else {
+        msg.reply_to
     };
-    if let Err(_) = ctx
+    if let Err(e) = ctx
         .msg()
-        .publish(reply_to, None, &serde_json::to_vec(&payload)?)
+        .publish(&reply_to, None, &serde_json::to_vec(&payload)?)
     {
-        return Err("Error publishing message".into());
+        return Err(format!("Error publishing message: {}", e).into());
     };
     Ok(vec![])
 }
@@ -94,6 +94,10 @@ fn handle_frame(
     }
 
     let frame: codec::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
+    // TODO: 
+    // - query the position and velocity component values (decs:components:{shard}:{entity}:{component})
+    // - compute new position
+    // - publish new position at call.decs.components.{shard}.{entity}.{component}.set in appopriate JSON format
 
     /*match extract_frame(&msg.body) {
         Ok(v) => {
@@ -117,7 +121,7 @@ fn handle_frame(
         }
         Err(_) => {
             return Err("Did not receive components needed for frame update".into());
-        }        
+        }
     };*/
     Ok(vec![])
 }
