@@ -14,7 +14,7 @@
 
 extern crate decscloud_codec as codec;
 extern crate serde_json;
-extern crate wascap_guest as guest;
+extern crate waxosuit_guest as guest;
 
 use codec::systemmgr::System;
 use guest::prelude::*;
@@ -60,7 +60,7 @@ fn handle_message(
 /// Receives messages on the subject `system.registry` and replies with physics system metadata
 fn handle_ping(
     ctx: &CapabilitiesContext,
-    msg: guest::prelude::messaging::BrokerMessage,
+    msg: messaging::BrokerMessage,
 ) -> CallResult {
     let payload = System {
         name: "physics".to_string(),
@@ -80,17 +80,22 @@ fn handle_ping(
     Ok(vec![])
 }
 
-/// Receives messages on the subject `decs.systems.{shard}.{system}.frames`, e.g. `decs.systems.default.physics.frames`
+/// Receives an entity, shard, elapsed time, etc from an EntityFrame
+/// published on decs.frames.{shard}.{system}, e.g. `decs.frames.the_void.physics`
+/// or `decs.frames.shard-two.nav`. Resulting new component should be published
+/// on call.decs.components.{shard-id}.{entity-id}.{component-name}.set
 fn handle_frame(
     ctx: &CapabilitiesContext,
     msg: guest::prelude::messaging::BrokerMessage,
 ) -> CallResult {
-    let subject: Vec<&str> = msg.subject.split(".").collect();
+    let subject: Vec<&str> = msg.subject.split('.').collect();
     if subject.len() != 5 {
         return Err("Unknown message subject received".into());
     }
 
-    match extract_frame(&msg.body) {
+    let frame: codec::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
+
+    /*match extract_frame(&msg.body) {
         Ok(v) => {
             let (entity, elapsed, pos, vel) = v;
             if vel.mag == 0 {
@@ -113,7 +118,7 @@ fn handle_frame(
         Err(_) => {
             return Err("Did not receive components needed for frame update".into());
         }        
-    };
+    };*/
     Ok(vec![])
 }
 
