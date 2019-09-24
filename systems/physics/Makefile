@@ -24,7 +24,7 @@ bench:
 
 build:
 	@$(CARGO) build
-	wascap sign ../target/wasm32-unknown-unknown/debug/physics.wasm ../target/wasm32-unknown-unknown/debug/physics_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g
+	wascap sign ../target/wasm32-unknown-unknown/debug/physics.wasm ../target/wasm32-unknown-unknown/debug/physics_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
 
 check:
 	@$(CARGO) check
@@ -43,7 +43,7 @@ update:
 
 release:
 	@$(CARGO) build --release
-	wascap sign ../target/wasm32-unknown-unknown/release/physics.wasm ../target/wasm32-unknown-unknown/release/physics_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g
+	wascap sign ../target/wasm32-unknown-unknown/release/physics.wasm ../target/wasm32-unknown-unknown/release/physics_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
 
 docker: release
 	docker build -t physics .
