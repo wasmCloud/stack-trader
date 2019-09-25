@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate decscloud_codec as codec;
+#[macro_use]
 extern crate serde_json;
+extern crate decscloud_codec as codec;
 extern crate waxosuit_guest as guest;
 
-use codec::systemmgr::System;
+use codec::systemmgr::*;
 use guest::prelude::*;
-use serde_json::Value;
 use stacktrader_types as trader;
 use trader::components::*;
 
@@ -89,58 +89,57 @@ fn handle_frame(
     msg: guest::prelude::messaging::BrokerMessage,
 ) -> CallResult {
     let subject: Vec<&str> = msg.subject.split('.').collect();
-    if subject.len() != 5 {
+    if subject.len() != 4 {
         return Err("Unknown message subject received".into());
     }
 
     let frame: codec::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
-    // TODO: 
-    // - query the position and velocity component values (decs:components:{shard}:{entity}:{component})
-    // - compute new position
-    // - publish new position at call.decs.components.{shard}.{entity}.{component}.set in appopriate JSON format
 
-    /*match extract_frame(&msg.body) {
-        Ok(v) => {
-            let (entity, elapsed, pos, vel) = v;
-            if vel.mag == 0 {
-                return Ok(vec![]);
-            } else if vel.ux == 0.0 && vel.uy == 0.0 && vel.uz == 0.0 {
-                return Err("Bad target vector".into());
-            }
+    let position_value = ctx.kv().get(&format!(
+        "decs:components:{}:{}:{}",
+        frame.shard, frame.entity_id, POSITION
+    ))?;
+    let velocity_value = ctx.kv().get(&format!(
+        "decs:components:{}:{}:{}",
+        frame.shard, frame.entity_id, VELOCITY
+    ))?;
+    if let (Some(position_str), Some(velocity_str)) = (position_value, velocity_value) {
+        let position: Position = serde_json::from_str(&position_str)?;
+        let velocity: Velocity = serde_json::from_str(&velocity_str)?;
 
-            if let Ok(new_position) = new_position(elapsed, &pos, &vel) {
-                let publish_subject = &format!("decs.{}.{}.position.put", subject[2], entity);
-                if let Err(_) = ctx.msg().publish(
-                    publish_subject,
-                    None,
-                    &serde_json::to_vec(&new_position)?,
-                ) {
-                    return Err("Error publishing message".into());
-                };
+        if velocity.mag == 0 {
+            return Ok(vec![]);
+        } else if velocity.ux == 0.0 && velocity.uy == 0.0 && velocity.uz == 0.0 {
+            return Err("Bad target vector".into());
+        }
+
+        if let Ok(new_position) = new_position(frame.elapsed_ms.into(), &position, &velocity) {
+            let publish_subject = &format!(
+                "call.decs.components.{}.{}.{}.set",
+                frame.shard, frame.entity_id, POSITION
+            );
+            let payload = json!({ "params": new_position });
+            if ctx
+                .msg()
+                .publish(publish_subject, None, &serde_json::to_vec(&payload)?)
+                .is_err()
+            {
+                return Err("Error publishing message".into());
             };
-        }
-        Err(_) => {
-            return Err("Did not receive components needed for frame update".into());
-        }
-    };*/
+        };
+    } else {
+        return Err(format!(
+            "position or velocity component could not be retrieved for entity_id: {}",
+            frame.entity_id
+        )
+        .into());
+    };
     Ok(vec![])
-}
-
-/// Extracts the elapsed time, position and velocity values out of the aggregate frame
-fn extract_frame(frame_raw: &[u8]) -> Result<(String, u64, Position, Velocity)> {
-    let v: Value = serde_json::from_slice(frame_raw)?;
-
-    let entity = serde_json::from_value(v["entity"].clone())?;
-    let elapsed = serde_json::from_value(v["elapsed"].clone())?;
-    let pos = serde_json::from_value(v["position"].clone())?;
-    let vel = serde_json::from_value(v["velocity"].clone())?;
-
-    Ok((entity, elapsed, pos, vel))
 }
 
 /// Calculates a new position based on a current position and velocity over an elapsed time
 fn new_position(elapsed: u64, pos: &Position, vel: &Velocity) -> Result<Position> {
-    let multiplier = (u64::from(vel.mag) * elapsed) as f64 / 3600000.0;
+    let multiplier = (u64::from(vel.mag) * elapsed) as f64 / 3_600_000.0;
     Ok(Position {
         x: pos.x + vel.ux * multiplier,
         y: pos.y + vel.uy * multiplier,
@@ -150,107 +149,69 @@ fn new_position(elapsed: u64, pos: &Position, vel: &Velocity) -> Result<Position
 
 #[cfg(test)]
 mod test {
-    use super::extract_frame;
     use super::new_position;
+    use super::Position;
+    use super::Velocity;
 
-    #[test]
-    fn test_extract_frame() {
-        let data = br#"
-        {
-            "entity": "34a79797-163e-474b-a8ff-970f2808c1b1",
-            "elapsed": 16,
-            "position": {
-                "x": 1,
-                "y": 2.5,
-                "z": 31.056
-            },
-            "velocity": {
-                "mag": 7500,
-                "ux": 1.0,
-                "uy": 0,
-                "uz": 0
-            }
-        }
-        "#;
-
-        let (entity, elapsed, pos, vel) = extract_frame(data).unwrap();
-        assert_eq!(entity, "34a79797-163e-474b-a8ff-970f2808c1b1".to_string());
-        assert_eq!(elapsed, 16);
-        assert_eq!(pos.x, 1.0);
-        assert_eq!(pos.y, 2.5);
-        assert_eq!(vel.mag, 7500);
-    }
+    const FLOATEPSILON: f64 = std::f64::EPSILON;
 
     #[test]
     fn test_new_position() {
-        let data = br#"
-        {
-            "entity": "34a79797-163e-474b-a8ff-970f2808c1b1",
-            "elapsed": 16,
-            "position": {
-                "x": 1,
-                "y": 30,
-                "z": -10
-            },
-            "velocity": {
-                "mag": 7200,
-                "ux": 1.0,
-                "uy": 1.0,
-                "uz": 1.0
-            }
-        }
-        "#;
+        let elapsed = 16;
+        let pos = Position {
+            x: 1.0,
+            y: 30.0,
+            z: -10.0,
+        };
+        let vel = Velocity {
+            mag: 7200,
+            ux: 1.0,
+            uy: 1.0,
+            uz: 1.0,
+        };
 
-        let (entity, elapsed, pos, vel) = extract_frame(data).unwrap();
-        assert_eq!(entity, "34a79797-163e-474b-a8ff-970f2808c1b1".to_string());
         assert_eq!(elapsed, 16);
-        assert_eq!(pos.x, 1.0);
-        assert_eq!(pos.y, 30.0);
-        assert_eq!(pos.z, -10.0);
+        assert!(pos.x - 1.0 <= FLOATEPSILON);
+        assert!(pos.y - 30.0 <= FLOATEPSILON);
+        assert!(pos.z - 10.0 <= FLOATEPSILON);
         assert_eq!(vel.mag, 7200);
 
         let new_pos = new_position(elapsed, &pos, &vel).unwrap();
-        assert_eq!(new_pos.x, 1.032);
-        assert_eq!(new_pos.y, 30.032);
-        assert_eq!(new_pos.z, -9.968);
+        assert!(new_pos.x - 1.032 <= FLOATEPSILON);
+        assert!(new_pos.y - 30.032 <= FLOATEPSILON);
+        assert!(new_pos.z - 9.968 <= FLOATEPSILON);
 
         let new_pos_two = new_position(elapsed, &new_pos, &vel).unwrap();
-        assert_eq!(new_pos_two.x, 1.064);
-        assert_eq!(new_pos_two.y, 30.064);
-        assert_eq!(new_pos_two.z, -9.936);
+        assert!(new_pos_two.x - 1.064 <= FLOATEPSILON);
+        assert!(new_pos_two.y - 30.064 <= FLOATEPSILON);
+        assert!(new_pos_two.z - 9.936 <= FLOATEPSILON);
     }
 
     #[test]
     fn test_no_position_change() {
-        let data = br#"
-        {
-            "entity": "34a79797-163e-474b-a8ff-970f2808c1b1",
-            "elapsed": 16,
-            "position": {
-                "x": 11.0,
-                "y": -49.0,
-                "z": 20.0
-            },
-            "velocity": {
-                "mag": 0,
-                "ux": 1.0,
-                "uy": 1.0,
-                "uz": 1.0
-            }
-        }
-        "#;
-        let (entity, elapsed, pos, vel) = extract_frame(data).unwrap();
-        assert_eq!(entity, "34a79797-163e-474b-a8ff-970f2808c1b1".to_string());
+        let elapsed = 16;
+        let pos = Position {
+            x: 11.0,
+            y: 49.0,
+            z: -20.0,
+        };
+        let vel = Velocity {
+            mag: 0,
+            ux: 1.0,
+            uy: 1.0,
+            uz: 1.0,
+        };
         assert_eq!(elapsed, 16);
-        assert_eq!(pos.x, 11.0);
-        assert_eq!(pos.y, -49.0);
-        assert_eq!(pos.z, 20.0);
+
+        assert!(pos.x - 11.0 <= FLOATEPSILON);
+        assert!(pos.y - 49.0 <= FLOATEPSILON);
+        assert!(pos.z + 20.0 <= FLOATEPSILON);
         assert_eq!(vel.mag, 0);
 
         let new_pos = new_position(elapsed, &pos, &vel).unwrap();
-        assert_eq!(new_pos.x, pos.x);
-        assert_eq!(new_pos.y, pos.y);
-        assert_eq!(new_pos.z, pos.z);
+        assert!(new_pos.x - pos.x <= FLOATEPSILON);
+        assert!(new_pos.y - pos.y <= FLOATEPSILON);
+        assert!(new_pos.z - pos.z <= FLOATEPSILON);
     }
 
 }
