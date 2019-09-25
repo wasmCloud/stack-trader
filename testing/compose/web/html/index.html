@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Resgate - Hello World Example</title>
+    <script src="https://unpkg.com/resclient@latest/dist/resclient.min.js"></script>
+</head>
+
+<body>
+    <div id="root">
+        <br />
+        Discovered systems:<br />
+    </div>
+
+    <div id="shardroot">
+        <br />
+        Discovered shards:<br />
+    </div>
+
+    <div id="player1">
+        <br />
+        Player 1 position:<br />
+    </div>
+
+    <script>
+        const ResClient = resclient.default;
+        let client = new ResClient('ws://localhost:8080');
+        let root = document.getElementById("root");
+
+        client.get('decs.systems').then(systems => {
+            systems.toArray().forEach(element => {
+                var sys = document.createElement("div");
+                sys.innerText = element.name + ' (' + element.components + ') @ ' + element.framerate + "fps";
+                root.appendChild(sys);
+                console.log(element);
+            });
+        }).catch(err => {
+            console.log(err);
+            document.body.textContent = "Error getting model. Are NATS Server and Resgate running?";
+        });
+
+        client.get('decs.shards').then(shards => {
+            let position = { "x": 1.0, "y": 2.0, "z": 3.0 };
+            let velocity = { "mag": 7200, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
+            client.call('decs.components.the_void.player1.position', 'set', position).then(res => {
+                client.get('decs.components.the_void.player1.position').then(position => {
+                    position.on('change', change => {
+                        console.log(change);
+                    });
+                });
+            });
+            client.call('decs.components.the_void.player1.velocity', 'set', velocity);
+
+            shards.toArray().forEach(element => {
+                var shard = document.createElement("div");
+                shard.innerText = element.name + ' (' + element.current + '/' + element.capacity + ');'
+                shardroot.appendChild(shard);
+                console.log(element);
+            });
+        }).catch(err => {
+            console.log(err);
+            document.body.textContent = "Error getting model. Are NATS Server and Resgate running?";
+        });
+    </script>
+
+
+</body>
+
+</html>
