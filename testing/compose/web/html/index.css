@@ -1,0 +1,22 @@
+body {
+    margin: 2%;
+}
+
+div#velocity {
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
+}
+
+div#velocity > input {
+    margin: 5px 0px 5px 0px;
+}
+
+span.heading {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+input {
+    font-size: 14px;
+}
