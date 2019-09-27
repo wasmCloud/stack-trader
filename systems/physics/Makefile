@@ -46,4 +46,4 @@ release:
 	wascap sign ../target/wasm32-unknown-unknown/release/physics.wasm ../target/wasm32-unknown-unknown/release/physics_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
 
 docker: release
-	docker build -t physics .
+	docker build -f ../Dockerfile.physics -t stacktrader/physics ../
