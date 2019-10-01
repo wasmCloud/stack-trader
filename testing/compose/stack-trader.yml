@@ -44,7 +44,11 @@ services:
       - "8080"
     ports:
       - "8080:8080"
+<<<<<<< HEAD
     command: "--nats nats://nats:4222 --debug"
+=======
+    command: "--nats nats://nats:4222"
+>>>>>>> 04307a0a078019faa3d545d1930523c15e4592db
     links:
       - nats
     depends_on:
@@ -123,7 +127,11 @@ services:
       - "REDIS_URL=redis://redis:6379"  
       - "NATS_SUBSCRIPTION=get.decs.components.*.*.*,call.decs.components.*.*.*.set,access.decs.components.>"
   physics:
+<<<<<<< HEAD
     build: "../../systems/physics"
+=======
+    image: 'stacktrader/physics'
+>>>>>>> 04307a0a078019faa3d545d1930523c15e4592db
     expose:
       - "9005"
     ports:
