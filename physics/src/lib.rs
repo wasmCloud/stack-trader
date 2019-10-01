@@ -213,5 +213,4 @@ mod test {
         assert!(new_pos.y - pos.y <= FLOATEPSILON);
         assert!(new_pos.z - pos.z <= FLOATEPSILON);
     }
-
 }
