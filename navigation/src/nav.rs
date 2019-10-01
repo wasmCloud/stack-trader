@@ -89,7 +89,7 @@ fn process_frame(
 
     // If we are within THRESHOLD km of the target, automatically set velocity to zero
     if nt.distance_km <= THRESHOLD_DISTANCE_KM {
-        let payload = json!({ "params": Velocity::default() });
+        let payload = json!({ "params": Velocity{ mag: 0, ..*vel} });
         ctx.msg().publish(
             &format!("decs.components.{}.{}.velocity", shard, entity_id),
             None,
