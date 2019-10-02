@@ -77,7 +77,7 @@ fn process_frame(
         rid: target.rid.clone(),
     };
 
-    let publish_subject = format!("decs.components.{}.{}.target", shard, entity_id);
+    let publish_subject = format!("call.decs.components.{}.{}.target.set", shard, entity_id);
     let payload = json!({ "params": nt });
     if ctx
         .msg()
@@ -91,7 +91,7 @@ fn process_frame(
     if nt.distance_km <= THRESHOLD_DISTANCE_KM {
         let payload = json!({ "params": Velocity{ mag: 0, ..*vel} });
         ctx.msg().publish(
-            &format!("decs.components.{}.{}.velocity", shard, entity_id),
+            &format!("call.decs.components.{}.{}.velocity.set", shard, entity_id),
             None,
             &serde_json::to_vec(&payload)?,
         )?;
