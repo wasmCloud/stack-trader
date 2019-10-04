@@ -3,7 +3,8 @@
 members = [    
     "navigation",
     "physics",
-    "stacktrader-types"
+    "stacktrader-types",
+    "radar"
 ]
 
 [profile.release]

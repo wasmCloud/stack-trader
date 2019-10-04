@@ -17,6 +17,9 @@ client.get('decs.systems').then(systems => {
 
 client.get('decs.shards').then(shards => {
     setupPlayer1();
+    setupEntity("iron_ore");
+    setupEntity("iridium");
+    setupEntity("enemy_spaceship");
 
     shards.toArray().forEach(element => {
         var shard = document.createElement("div");
@@ -32,6 +35,7 @@ client.get('decs.shards').then(shards => {
 let setupPlayer1 = () => {
     let position = { "x": 1.0, "y": 2.0, "z": 3.0 };
     let velocity = { "mag": 7200, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
+    let radar_receiver = { "radius": 50.0 };
     client.call('decs.components.the_void.player1.velocity', 'set', velocity).then(res => {
         document.getElementById("magnitude").value = velocity.mag;
         document.getElementById("ux").value = velocity.ux;
@@ -54,6 +58,28 @@ let setupPlayer1 = () => {
             });
         });
     });
+    client.call('decs.components.the_void.player1.radar_receiver', 'set', radar_receiver).then(res => {
+        // client.call('decs.components.the_void.player1.radar_contacts', 'set', { "entities": ['MYSELF'] }).then(x => {
+        // setTimeout(() => client.get('decs.components.the_void.player1.radar_contacts').then(contacts => {
+        // document.getElementById("player1_contacts").innerText = '[' + change.reduce((m, i) => m + ', ' + i) + ']';
+        // console.dir(contacts)
+        // contacts.on('change', change => {
+        // console.log(change)
+        // document.getElementById("player1_contacts").innerText = '[' + change.reduce((m, i) => m + ', ' + i) + ']';
+        // }).catch(err => {
+        //     console.log(err)
+        // }), 5000)
+        // })
+    });
+}
+
+let setupEntity = (name) => {
+    let position = { "x": 3.0, "y": 2.0, "z": 3.0 };
+    let velocity = { "mag": 7200, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
+    // let radar_receiver = { "radius": 50.0 };
+    client.call(`decs.components.the_void.${name}.velocity`, 'set', velocity);
+    client.call(`decs.components.the_void.${name}.position`, 'set', position);
+    // client.call(`decs.components.the_void.${name}.radar_receiver`, 'set', radar_receiver);
 }
 
 let changeVelocity = (event) => {

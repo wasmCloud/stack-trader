@@ -30,14 +30,19 @@ impl Position {
 
     /// Computes the unit vector pointing from source to target and the magnitude
     /// of the resulting vector is the distance to that target
-    pub fn vector_to(self, target: &Position) -> Vector {
+    pub fn vector_to(self, target: &Position) -> TargetVector {
         let ab = (target.x - self.x, target.y - self.y, target.z - self.z);
         let d = self.distance_to(&target);
-        Vector {
+        let heading_xy = ab.1.atan2(ab.0) * 180.0 / std::f64::consts::PI; //TODO: Verify math here, might need to have a change like below
+        let heading_z = ab.2.atan() * 360.0 / std::f64::consts::PI * -1.0 + 180.0;
+
+        TargetVector {
             mag: d.round() as u32,
             ux: ab.0 / d,
             uy: ab.1 / d,
             uz: ab.2 / d,
+            heading_xy,
+            heading_z,
         }
     }
 }
@@ -60,12 +65,36 @@ impl Velocity {
 
 pub type Vector = Velocity;
 
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct TargetVector {
+    pub mag: u32,
+    pub ux: f64,
+    pub uy: f64,
+    pub uz: f64,
+    pub heading_xy: f64, // Number between 0-360 representing xy angle (e.g. whether it's to the left or right)
+    pub heading_z: f64, // Number between 0-360 representing z angle (e.g. whether it's above or below)
+}
+
 /// Represents a selected target for the navigation system.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Target {
     pub rid: String, // The resource ID (e.g. decs.components.the_void.entity25) of the target
     pub eta_ms: f64, // Estimated time of arrival at the target, in milliseconds
     pub distance_km: f64, // Distance to the target in kilometers
+}
+
+/// Represents a radar component that scans for entities around the entity with the receiver.
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct RadarReceiver {
+    pub radius: f64, // The range of the radar as a radius in km
+}
+
+/// Represents a single radar contact
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct RadarContact {
+    pub rid: String,
+    pub pos: Position,
+    pub vector_to: TargetVector,
 }
 
 #[cfg(test)]
