@@ -140,7 +140,6 @@ services:
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=decs.frames.*.*,decs.system.registry"
   radar:
-    # image: 'stacktrader/physics'
     build: "../../radar"
     expose:
       - "9006"

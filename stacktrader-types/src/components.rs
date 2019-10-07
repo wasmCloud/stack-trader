@@ -92,9 +92,11 @@ pub struct RadarReceiver {
 /// Represents a single radar contact
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
 pub struct RadarContact {
-    pub rid: String,
-    pub pos: Position,
-    pub vector_to: TargetVector,
+    pub entity_id: String,
+    // pub pos: Position,
+    pub distance: u32,
+    pub heading_xy: f64,
+    pub heading_z: f64,
 }
 
 #[cfg(test)]

@@ -48,26 +48,26 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
             frame.shard, frame.entity_id, RADAR_CONTACTS
         );
 
-        let old_contacts: Vec<RadarContact> = if ctx.kv().exists(radar_contacts_key)? {
-            let mut old_contacts: Vec<RadarContact> = vec![];
-            if let Some(contacts_str) = ctx.kv().get(radar_contacts_key)? {
-                for c in contacts_str.split(',').collect::<Vec<&str>>() {
-                    if let Some(radar_contact_str) = ctx.kv().get(c)? {
-                        old_contacts.push(serde_json::from_str(&radar_contact_str.to_string())?);
-                    }
+        let old_contacts: HashMap<String, RadarContact> = if ctx.kv().exists(radar_contacts_key)? {
+            let contact_members = ctx.kv().set_members(radar_contacts_key)?;
+            let mut old_contacts: HashMap<String, RadarContact> = HashMap::new();
+            for c in contact_members {
+                let contact = c.replace(".", ":");
+                if let Some(radar_contact_str) = ctx.kv().get(&contact)? {
+                    old_contacts.insert(
+                        contact,
+                        serde_json::from_str(&radar_contact_str.to_string())?,
+                    );
                 }
             }
-            ctx.log(&format!("ALL OLD CONTACTS: {:?}", old_contacts));
             old_contacts
         } else {
-            vec![]
+            HashMap::new()
         };
 
         let all_positions = POSITIONS.read().unwrap();
-        ctx.log(&format!("RESOURCE: {}", resource_id));
-        ctx.log(&format!("ALL POSITIONS: {:?}", all_positions));
         let updates = radar_updates(
-            &resource_id,
+            &frame.entity_id,
             &position,
             &radar_receiver,
             &old_contacts,
@@ -77,14 +77,29 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
         for update in updates {
             match update {
                 RadarContactDelta::Add(rc) => {
-                    new_contact(ctx, &resource_id, &rc)?;
+                    let new_subject = ResProtocolRequest::New(format!(
+                        "{}.{}",
+                        resource_id.to_string(),
+                        RADAR_CONTACTS
+                    ))
+                    .to_string();
+                    let payload = serde_json::json!({ "params": rc });
+                    publish_message(ctx, &new_subject, payload)?;
                 }
                 RadarContactDelta::Remove(rid) => {
-                    delete_contact(ctx, &resource_id, &rid)?;
+                    let delete_subject = ResProtocolRequest::Delete(format!(
+                        "{}.{}",
+                        resource_id.to_string(),
+                        RADAR_CONTACTS
+                    ))
+                    .to_string();
+                    let payload = serde_json::json!({ "params": {"rid": rid.replace(":", ".")}});
+                    publish_message(ctx, &delete_subject, payload)?;
                 }
-                RadarContactDelta::Change(rc) => {
-                    delete_contact(ctx, &resource_id, &rc.rid)?;
-                    new_contact(ctx, &resource_id, &rc)?;
+                RadarContactDelta::Change(rid, rc) => {
+                    let set_subject = &format!("call.{}.set", rid);
+                    let payload = serde_json::json!({ "params": rc });
+                    publish_message(ctx, set_subject, payload)?;
                 }
             }
         }
@@ -92,32 +107,10 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
     Ok(vec![])
 }
 
-/// Function to publish a message to create a new collection or add a new component to a collection
-fn new_contact(
-    ctx: &CapabilitiesContext,
-    rid: &String,
-    radar_contact: &RadarContact,
-) -> CallResult {
-    let new_subject =
-        ResProtocolRequest::New(format!("{}.{}", rid.to_string(), RADAR_CONTACTS)).to_string();
-    ctx.log(&format!("New subject: {}", new_subject));
-    let payload = serde_json::json!({ "params": radar_contact });
-    ctx.log(&format!("Payload: {:?}", payload));
-    publish_message(ctx, &new_subject, payload)
-}
-
-/// Function that deletes a component from a collection given a resource id
-fn delete_contact(ctx: &CapabilitiesContext, rid: &String, contact_rid: &String) -> CallResult {
-    let delete_subject =
-        ResProtocolRequest::Delete(format!("{}.{}", rid.to_string(), RADAR_CONTACTS)).to_string();
-    let payload = serde_json::json!({ "params": {"rid": contact_rid}});
-    publish_message(ctx, &delete_subject, payload)
-}
-
 /// Helper function used to publish a payload on a specified subjct
 fn publish_message(
     ctx: &CapabilitiesContext,
-    subject: &String,
+    subject: &str,
     payload: serde_json::value::Value,
 ) -> CallResult {
     if ctx
@@ -135,30 +128,47 @@ fn publish_message(
 /// radar receiver, all old contacts, and a map of all entity positions that are published.
 /// Changes are in the form of RadarContactDeltas, either specifying to Add, Remove, or Change a contact.
 fn radar_updates(
-    resource_id: &String,
+    entity_id: &str,
     current_position: &Position,
     radar_receiver: &RadarReceiver,
-    old_contacts: &Vec<RadarContact>,
+    old_contacts: &HashMap<String, RadarContact>,
     all_positions: &HashMap<String, Position>,
 ) -> Vec<RadarContactDelta> {
     let mut deltas: Vec<RadarContactDelta> = Vec::new();
-    let old_contact_rids: Vec<String> = old_contacts.iter().map(|c| c.rid.clone()).collect();
+    let contacts: Vec<String> = old_contacts
+        .values()
+        .map(|rc| rc.clone().entity_id)
+        .collect();
     for (k, v) in all_positions.iter() {
-        if old_contact_rids.contains(k) {
-            if within_radius(current_position, v, radar_receiver.radius) {
-                deltas.push(RadarContactDelta::Change(RadarContact {
-                    rid: k.clone().to_string(),
-                    pos: *v,
-                    vector_to: current_position.vector_to(v),
-                }));
-            } else {
-                deltas.push(RadarContactDelta::Remove(k.clone().to_string()));
+        if contacts.contains(k) {
+            let mut rid: String = "".to_string();
+            for (key, val) in old_contacts.iter() {
+                if val.entity_id == *k {
+                    rid = key.to_string();
+                    break;
+                }
             }
-        } else if resource_id != k && within_radius(current_position, &v, radar_receiver.radius) {
+            if within_radius(current_position, v, radar_receiver.radius) {
+                let vector_to = current_position.vector_to(v);
+                deltas.push(RadarContactDelta::Change(
+                    rid.replace(":", "."),
+                    RadarContact {
+                        entity_id: k.clone().to_string(),
+                        distance: vector_to.mag,
+                        heading_xy: vector_to.heading_xy,
+                        heading_z: vector_to.heading_z,
+                    },
+                ));
+            } else {
+                deltas.push(RadarContactDelta::Remove(rid));
+            }
+        } else if entity_id != k && within_radius(current_position, &v, radar_receiver.radius) {
+            let vector_to = current_position.vector_to(v);
             deltas.push(RadarContactDelta::Add(RadarContact {
-                rid: k.clone().to_string(),
-                pos: *v,
-                vector_to: current_position.vector_to(v),
+                entity_id: k.clone().to_string(),
+                distance: vector_to.mag,
+                heading_xy: vector_to.heading_xy,
+                heading_z: vector_to.heading_z,
             }));
         }
     }
@@ -169,7 +179,7 @@ fn radar_updates(
 enum RadarContactDelta {
     Add(RadarContact),
     Remove(String),
-    Change(RadarContact),
+    Change(String, RadarContact),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -185,22 +195,18 @@ pub(crate) fn handle_entity_position_change(
     msg: messaging::BrokerMessage,
 ) -> CallResult {
     let subject: Vec<&str> = msg.subject.split('.').collect();
-    let resource_id = format!("decs.components.{}.{}", subject[3], subject[4]);
     let position_value: PositionValue = serde_json::from_slice(&msg.body)?;
     let position: Position = position_value.values;
     POSITIONS
         .write()
         .unwrap()
-        .insert(resource_id.to_string(), position);
+        .insert(subject[4].to_string(), position);
     Ok(vec![])
 }
 
+/// Helper function to clean up determining if an entity is within a radius
 fn within_radius(entity: &Position, target: &Position, radius: f64) -> bool {
-    if entity.distance_to(target) <= radius {
-        true
-    } else {
-        false
-    }
+    entity.distance_to(target) <= radius
 }
 
 #[cfg(test)]
@@ -261,42 +267,49 @@ mod test {
         assert!(within_radius(&a, &b, radius));
     }
 
-    //TODO: fix tests below, can no longer use .contains() to check radar contacts
-
     #[test]
     fn test_add_contacts() {
-        let rid = String::from("decs.components.the_shard.myownentity");
+        let rid = "decs.components.the_shard.myownentity".to_string();
         let current_position = Position {
             x: 0.0,
             y: 0.0,
             z: 0.0,
         };
         let radar_receiver = RadarReceiver { radius: 5.0 };
-        let old_contacts: Vec<RadarContact> = vec![];
+        let old_contacts: HashMap<String, RadarContact> = HashMap::new();
         let mut all_positions: HashMap<String, Position> = HashMap::new();
 
+        let vector_to = current_position.vector_to(&current_position.clone());
+
         let nearby_asteroid = RadarContact {
-            rid: String::from("decs.components.the_shard.asteroid"),
-            pos: current_position.clone(),
-            vector_to: current_position.vector_to(&current_position.clone()),
+            entity_id: "decs.components.the_shard.asteroid".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
         };
         let nearby_ship = RadarContact {
-            rid: String::from("decs.components.the_shard.ship"),
-            pos: current_position.clone(),
-            vector_to: current_position.vector_to(&current_position.clone()),
+            entity_id: "decs.components.the_shard.ship".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
         };
         let mut far_away_money = RadarContact {
-            rid: String::from("decs.components.the_shard.money"),
-            pos: current_position.clone(),
-            vector_to: current_position.vector_to(&current_position.clone()),
+            entity_id: "decs.components.the_shard.money".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
         };
-        far_away_money.pos.x += 500.0;
-        far_away_money.vector_to = current_position.vector_to(&far_away_money.pos);
+        let mut far_away_money_pos = current_position.clone();
+        far_away_money_pos.x += 500.0;
+        let new_vector_to = current_position.vector_to(&far_away_money_pos);
+        far_away_money.distance = new_vector_to.mag;
+        far_away_money.heading_xy = new_vector_to.heading_xy;
+        far_away_money.heading_z = new_vector_to.heading_z;
 
         all_positions.insert(rid.to_string(), current_position);
-        all_positions.insert(nearby_asteroid.rid.clone(), nearby_asteroid.pos.clone());
-        all_positions.insert(nearby_ship.rid.clone(), nearby_ship.pos.clone());
-        all_positions.insert(far_away_money.rid.clone(), far_away_money.pos.clone());
+        all_positions.insert(nearby_asteroid.entity_id.clone(), current_position.clone());
+        all_positions.insert(nearby_ship.entity_id.clone(), current_position.clone());
+        all_positions.insert(far_away_money.entity_id.clone(), far_away_money_pos.clone());
 
         let changes = radar_updates(
             &rid,
@@ -307,16 +320,23 @@ mod test {
         );
 
         assert_eq!(changes.len(), 2);
-        // assert!(changes
-        //     .iter()
-        //     .any(|r| r == &RadarContactDelta::Add(nearby_asteroid.clone())));
-        // assert!(changes.contains(&RadarContactDelta::Add(nearbyship)));
-        assert!(!changes.contains(&RadarContactDelta::Add(far_away_money)));
+        // The following loop ensures that all of the changes don't include the far_away_money, but they do include nearby_asteroid & nearby_ship
+        let mut found_rc = far_away_money.clone();
+        for c in changes {
+            match c {
+                RadarContactDelta::Add(rc) => {
+                    assert!(rc != found_rc && (rc == nearby_asteroid || rc == nearby_ship));
+                    found_rc = rc.clone();
+                }
+                RadarContactDelta::Remove(_) => assert!(false),
+                RadarContactDelta::Change(_, _) => assert!(false),
+            }
+        }
     }
 
     #[test]
     fn test_remove_contacts() {
-        let rid = String::from("decs.components.the_shard.myownentity");
+        let rid = "decs.components.the_shard.myownentity".to_string();
         let current_position = Position {
             x: 0.0,
             y: 0.0,
@@ -325,35 +345,60 @@ mod test {
         let radar_receiver = RadarReceiver { radius: 5.0 };
         let mut all_positions: HashMap<String, Position> = HashMap::new();
 
+        let vector_to = current_position.vector_to(&current_position.clone());
+
         let mut nearby_asteroid = RadarContact {
-            rid: String::from("decs.components.the_shard.asteroid"),
-            pos: current_position.clone(),
-            vector_to: current_position.vector_to(&current_position.clone()),
+            entity_id: "decs.components.the_shard.asteroid".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
         };
         let mut nearby_ship = RadarContact {
-            rid: String::from("decs.components.the_shard.ship"),
-            pos: current_position.clone(),
-            vector_to: current_position.vector_to(&current_position.clone()),
+            entity_id: "decs.components.the_shard.ship".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
         };
         let mut far_away_money = RadarContact {
-            rid: String::from("decs.components.the_shard.money"),
-            pos: current_position.clone(),
-            vector_to: current_position.vector_to(&current_position.clone()),
+            entity_id: "decs.components.the_shard.money".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
         };
 
-        let old_contacts: Vec<RadarContact> = vec![nearby_asteroid.clone(), nearby_ship.clone()];
+        let mut old_contacts: HashMap<String, RadarContact> = HashMap::new();
+        let remove_rid_1 = "decs.components.the_shard.myownentity.1".to_string();
+        let remove_rid_2 = "decs.components.the_shard.myownentity.2".to_string();
+        old_contacts.insert(remove_rid_1.clone(), nearby_asteroid.clone());
+        old_contacts.insert(remove_rid_2.clone(), nearby_ship.clone());
 
-        far_away_money.pos.x += 500.0;
-        far_away_money.vector_to = current_position.vector_to(&far_away_money.pos);
-        nearby_asteroid.pos.x += 500.0;
-        nearby_asteroid.vector_to = current_position.vector_to(&nearby_asteroid.pos);
-        nearby_ship.pos.x += 500.0;
-        nearby_ship.vector_to = current_position.vector_to(&nearby_ship.pos);
+        let mut current_position_clone = current_position.clone();
+
+        current_position_clone.x += 500.0;
+        let new_vector_to = current_position.vector_to(&current_position_clone);
+        far_away_money.distance = new_vector_to.mag;
+        far_away_money.heading_xy = new_vector_to.heading_xy;
+        far_away_money.heading_z = new_vector_to.heading_z;
+        nearby_asteroid.distance = new_vector_to.mag;
+        nearby_asteroid.heading_xy = new_vector_to.heading_xy;
+        nearby_asteroid.heading_z = new_vector_to.heading_z;
+        nearby_ship.distance = new_vector_to.mag;
+        nearby_ship.heading_xy = new_vector_to.heading_xy;
+        nearby_ship.heading_z = new_vector_to.heading_z;
 
         all_positions.insert(rid.to_string(), current_position);
-        all_positions.insert(nearby_asteroid.rid.clone(), nearby_asteroid.pos.clone());
-        all_positions.insert(nearby_ship.rid.clone(), nearby_ship.pos.clone());
-        all_positions.insert(far_away_money.rid.clone(), far_away_money.pos.clone());
+        all_positions.insert(
+            nearby_asteroid.entity_id.clone(),
+            current_position_clone.clone(),
+        );
+        all_positions.insert(
+            nearby_ship.entity_id.clone(),
+            current_position_clone.clone(),
+        );
+        all_positions.insert(
+            far_away_money.entity_id.clone(),
+            current_position_clone.clone(),
+        );
 
         let changes = radar_updates(
             &rid,
@@ -364,11 +409,195 @@ mod test {
         );
 
         assert_eq!(changes.len(), 2);
-        assert!(changes.contains(&RadarContactDelta::Remove(nearby_asteroid.rid)));
-        assert!(changes.contains(&RadarContactDelta::Remove(nearby_ship.rid)));
-        assert!(!changes.contains(&RadarContactDelta::Remove(far_away_money.rid.to_string())));
-        // assert!(!changes.contains(&RadarContactDelta::Add(far_away_money)));
-        // assert!(!changes.contains(&RadarContactDelta::Add(rid.to_string())));
+        assert!(changes.contains(&RadarContactDelta::Remove(remove_rid_1)));
+        assert!(changes.contains(&RadarContactDelta::Remove(remove_rid_2)));
+        assert!(!changes.contains(&RadarContactDelta::Remove(
+            far_away_money.entity_id.to_string()
+        )));
         assert!(!changes.contains(&RadarContactDelta::Remove(rid.to_string())));
+        for c in changes {
+            match c {
+                RadarContactDelta::Add(_) => assert!(false),
+                RadarContactDelta::Change(_, _) => assert!(false),
+                RadarContactDelta::Remove(_) => assert!(true),
+            }
+        }
+    }
+
+    #[test]
+    fn test_change_contact() {
+        let rid = "decs.components.the_shard.myownentity".to_string();
+        let current_position = Position {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        };
+        let radar_receiver = RadarReceiver { radius: 5.0 };
+        let mut all_positions: HashMap<String, Position> = HashMap::new();
+
+        let vector_to = current_position.vector_to(&current_position.clone());
+
+        let mut nearby_asteroid = RadarContact {
+            entity_id: "decs.components.the_shard.asteroid".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
+        };
+        let mut nearby_ship = RadarContact {
+            entity_id: "decs.components.the_shard.ship".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
+        };
+        let mut far_away_money = RadarContact {
+            entity_id: "decs.components.the_shard.money".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
+        };
+
+        let mut old_contacts: HashMap<String, RadarContact> = HashMap::new();
+
+        let change_rid_1 = "decs.components.the_shard.myownentity.1".to_string();
+        let change_rid_2 = "decs.components.the_shard.myownentity.2".to_string();
+        let change_rid_3 = "decs.components.the_shard.myownentity.3".to_string();
+        old_contacts.insert(change_rid_1.clone(), nearby_asteroid.clone());
+        old_contacts.insert(change_rid_2.clone(), nearby_ship.clone());
+        old_contacts.insert(change_rid_3.clone(), far_away_money.clone());
+
+        let mut current_position_clone = current_position.clone();
+        current_position_clone.x += 2.0;
+        let new_vector_to = current_position.vector_to(&current_position_clone);
+        far_away_money.distance = new_vector_to.mag;
+        far_away_money.heading_xy = new_vector_to.heading_xy;
+        far_away_money.heading_z = new_vector_to.heading_z;
+        nearby_asteroid.distance = new_vector_to.mag;
+        nearby_asteroid.heading_xy = new_vector_to.heading_xy;
+        nearby_asteroid.heading_z = new_vector_to.heading_z;
+        nearby_ship.distance = new_vector_to.mag;
+        nearby_ship.heading_xy = new_vector_to.heading_xy;
+        nearby_ship.heading_z = new_vector_to.heading_z;
+
+        all_positions.insert(rid.to_string(), current_position);
+        all_positions.insert(
+            nearby_asteroid.entity_id.clone(),
+            current_position_clone.clone(),
+        );
+        all_positions.insert(
+            nearby_ship.entity_id.clone(),
+            current_position_clone.clone(),
+        );
+        all_positions.insert(
+            far_away_money.entity_id.clone(),
+            current_position_clone.clone(),
+        );
+
+        let changes = radar_updates(
+            &rid,
+            &current_position,
+            &radar_receiver,
+            &old_contacts,
+            &all_positions,
+        );
+
+        assert_eq!(changes.len(), 3);
+        for c in changes {
+            match c {
+                RadarContactDelta::Add(_rc) => assert!(false),
+                RadarContactDelta::Remove(_s) => assert!(false),
+                RadarContactDelta::Change(s, _rc) => {
+                    assert!(s == change_rid_1 || s == change_rid_2 || s == change_rid_3)
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_modify_all_contacts() {
+        let rid = "decs.components.the_shard.myownentity".to_string();
+        let current_position = Position {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        };
+        let radar_receiver = RadarReceiver { radius: 5.0 };
+        let mut all_positions: HashMap<String, Position> = HashMap::new();
+
+        let vector_to = current_position.vector_to(&current_position.clone());
+
+        let mut nearby_asteroid = RadarContact {
+            entity_id: "decs.components.the_shard.asteroid".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
+        };
+        let mut nearby_ship = RadarContact {
+            entity_id: "decs.components.the_shard.ship".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
+        };
+        let mut far_away_money = RadarContact {
+            entity_id: "decs.components.the_shard.money".to_string(),
+            distance: vector_to.mag,
+            heading_xy: vector_to.heading_xy,
+            heading_z: vector_to.heading_z,
+        };
+
+        let mut old_contacts: HashMap<String, RadarContact> = HashMap::new();
+        let change_rid_1 = "decs.components.the_shard.myownentity.1".to_string();
+        let remove_rid_2 = "decs.components.the_shard.myownentity.2".to_string();
+        old_contacts.insert(change_rid_1.clone(), nearby_asteroid.clone());
+        old_contacts.insert(remove_rid_2.clone(), far_away_money.clone());
+        all_positions.insert(rid.to_string(), current_position);
+
+        // Change asteroid to move it slightly away
+        let mut current_position_clone = current_position.clone();
+        current_position_clone.x += 2.0;
+        let mut new_vector_to = current_position.vector_to(&current_position_clone);
+        nearby_asteroid.distance = new_vector_to.mag;
+        nearby_asteroid.heading_xy = new_vector_to.heading_xy;
+        nearby_asteroid.heading_z = new_vector_to.heading_z;
+        all_positions.insert(
+            nearby_asteroid.entity_id.clone(),
+            current_position_clone.clone(),
+        );
+
+        // Remove money, move it very far away
+        current_position_clone.x += 500.0;
+        new_vector_to = current_position.vector_to(&current_position_clone);
+        far_away_money.distance = new_vector_to.mag;
+        far_away_money.heading_xy = new_vector_to.heading_xy;
+        far_away_money.heading_z = new_vector_to.heading_z;
+        all_positions.insert(
+            far_away_money.entity_id.clone(),
+            current_position_clone.clone(),
+        );
+
+        // Add a new nearby ship, which wasn't an old contact.
+        new_vector_to = current_position.vector_to(&current_position.clone());
+        nearby_ship.distance = new_vector_to.mag;
+        nearby_ship.heading_xy = new_vector_to.heading_xy;
+        nearby_ship.heading_z = new_vector_to.heading_z;
+        all_positions.insert(nearby_ship.entity_id.clone(), current_position.clone());
+
+        let changes = radar_updates(
+            &rid,
+            &current_position,
+            &radar_receiver,
+            &old_contacts,
+            &all_positions,
+        );
+
+        assert_eq!(changes.len(), 3);
+        for c in changes {
+            match c {
+                RadarContactDelta::Add(rc) => {
+                    assert!(rc.entity_id == "decs.components.the_shard.ship")
+                }
+                RadarContactDelta::Remove(s) => assert_eq!(s, remove_rid_2),
+                RadarContactDelta::Change(s, _rc) => assert_eq!(s, change_rid_1),
+            }
+        }
     }
 }
