@@ -47,7 +47,7 @@ pub fn handle_call(ctx: &CapabilitiesContext, operation: &str, msg: &[u8]) -> Ca
     }
 }
 
-/// Routes message either to the `handle_ping` function for registry pings or TODO
+/// Routes message either to the `handle_ping` function for registry pings or to be routed based on frame or position change subject
 fn handle_message(
     ctx: &CapabilitiesContext,
     msg: impl Into<messaging::DeliverMessage>,
