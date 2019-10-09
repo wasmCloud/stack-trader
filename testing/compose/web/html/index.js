@@ -17,9 +17,7 @@ client.get('decs.systems').then(systems => {
 
 client.get('decs.shards').then(shards => {
     setupPlayer1();
-    setupEntity("iron_ore");
-    setupEntity("iridium");
-    setupEntity("enemy_spaceship");
+    setupRadarDemo();
 
     shards.toArray().forEach(element => {
         var shard = document.createElement("div");
@@ -33,9 +31,9 @@ client.get('decs.shards').then(shards => {
 });
 
 let setupPlayer1 = () => {
-    let position = { "x": 1.0, "y": 2.0, "z": 3.0 };
+    let position = { "x": 0.0, "y": 0.0, "z": 0.0 };
     let velocity = { "mag": 7200, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
-    let radar_receiver = { "radius": 50.0 };
+    let radar_receiver = { "radius": 5.0 };
     client.call('decs.components.the_void.player1.velocity', 'set', velocity).then(res => {
         document.getElementById("magnitude").value = velocity.mag;
         document.getElementById("ux").value = velocity.ux;
@@ -58,30 +56,66 @@ let setupPlayer1 = () => {
             });
         });
     });
-    client.call('decs.components.the_void.player1.radar_receiver', 'set', radar_receiver).then(res => {
-        // client.call('decs.components.the_void.player1.radar_contacts', 'set', { "entities": ['MYSELF'] }).then(x => {
-        // setTimeout(() => client.get('decs.components.the_void.player1.radar_contacts').then(contacts => {
-        // document.getElementById("player1_contacts").innerText = '[' + change.reduce((m, i) => m + ', ' + i) + ']';
-        // console.dir(contacts)
-        // contacts.on('change', change => {
-        // console.log(change)
-        // document.getElementById("player1_contacts").innerText = '[' + change.reduce((m, i) => m + ', ' + i) + ']';
-        // }).catch(err => {
-        //     console.log(err)
-        // }), 5000)
-        // })
-    });
+    client.call('decs.components.the_void.player1.radar_receiver', 'set', radar_receiver).then(_res => {
+        document.getElementById("radar_receiver").innerText = `Radius: ${radar_receiver.radius}km`
+        player1RadarContacts(client);
+    })
 }
 
-let setupEntity = (name) => {
-    let position = { "x": 3.0, "y": 2.0, "z": 3.0 };
-    let velocity = { "mag": 7200, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
+let player1RadarContacts = (client) => {
+    client.get('decs.components.the_void.player1.radar_contacts').then(res => {
+        res._list.forEach(c => {
+            c.on('change', _x => {
+                document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+            })
+        })
+        if (res._list && res._list.length > 1) {
+            document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+        }
+        res.on('remove', change => {
+            console.log("REMOVE")
+            if (res._list && res._list.length > 1) {
+                document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+            } else {
+                document.getElementById("player1_contacts").innerText = 'No current contacts';
+            }
+            console.log(res._list)
+        })
+        res.on('add', change => {
+            console.log("ADD")
+            document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+            if (change.item) {
+                change.item.on('change', c => {
+                    console.log("CHANGE")
+                    document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+                    console.log(res._list)
+                })
+            }
+            console.log(res._list)
+        })
+    }).catch(err => {
+        setTimeout(() =>
+            player1RadarContacts(client), 500);
+    })
+}
+
+let setupEntity = (name, x, y, z) => {
+    let position = { x, y, z };
+    let velocity = { "mag": 0, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
     // let radar_receiver = { "radius": 50.0 };
     client.call(`decs.components.the_void.${name}.velocity`, 'set', velocity);
     client.call(`decs.components.the_void.${name}.position`, 'set', position);
     // client.call(`decs.components.the_void.${name}.radar_receiver`, 'set', radar_receiver);
 }
 
+let setupRadarDemo = () => {
+    setupEntity("iron_ore", 1, 1, 2);
+    setupEntity("money", 3, 3, 3);
+    setupEntity("spaceship", 5, 5, 5);
+    setupEntity("gold_ore", 7, 8, 7);
+    setupEntity("starbase", 9, 9, 9);
+    setupEntity("enemy_spaceship", 14, 14, 14);
+}
 let changeVelocity = (event) => {
     let mag = Number.parseFloat(document.getElementById("magnitude").value);
     let ux = Number.parseFloat(document.getElementById("ux").value);

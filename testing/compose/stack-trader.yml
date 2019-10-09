@@ -118,7 +118,7 @@ services:
       - redis
     environment:
       - "PORT=9004"
-      - "RUST_LOG=info,cranelift_wasm=warn"
+      - "RUST_LOG=warn,cranelift_wasm=warn"
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=get.decs.components.*.*.>,call.decs.components.*.*.>,access.decs.components.>"
@@ -152,7 +152,7 @@ services:
       - nats
       - redis
     environment:
-      - "RUST_LOG=info,cranelift_wasm=warn"
+      - "RUST_LOG=warn,cranelift_wasm=warn"
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=decs.frames.*.radar,event.decs.components.*.*.position.change, decs.system.registry"
