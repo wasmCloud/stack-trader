@@ -16,11 +16,6 @@ lazy_static! {
 const RADAR_CONTACTS: &str = "radar_contacts";
 
 pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMessage) -> CallResult {
-    let subject: Vec<&str> = msg.subject.split('.').collect();
-    if subject.len() != 4 {
-        return Err("Unknown message subject received".into());
-    }
-
     let frame: codec::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
 
     let radar_receiver_value = ctx.kv().get(&format!(
@@ -48,22 +43,28 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
             frame.shard, frame.entity_id, RADAR_CONTACTS
         );
 
-        let old_contacts: HashMap<String, RadarContact> = if ctx.kv().exists(radar_contacts_key)? {
-            let contact_members = ctx.kv().set_members(radar_contacts_key)?;
-            let mut old_contacts: HashMap<String, RadarContact> = HashMap::new();
-            for c in contact_members {
-                let contact = c.replace(".", ":");
-                if let Some(radar_contact_str) = ctx.kv().get(&contact)? {
-                    old_contacts.insert(
-                        contact,
-                        serde_json::from_str(&radar_contact_str.to_string())?,
-                    );
+        let old_contacts: HashMap<String, RadarContact> = ctx
+            .kv()
+            .set_members(radar_contacts_key)?
+            .iter()
+            .filter_map(|c| {
+                if let Ok(Some(contact_str)) = ctx.kv().get(&c.replace(".", ":")) {
+                    if let Some(contact) = serde_json::from_str(&contact_str).unwrap_or(None) {
+                        Some((c, contact))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
                 }
-            }
-            old_contacts
-        } else {
-            HashMap::new()
-        };
+            })
+            .fold(
+                HashMap::<String, RadarContact>::new(),
+                |mut acc, (c, contact)| {
+                    acc.insert(c.to_string(), contact);
+                    acc
+                },
+            );
 
         let all_positions = POSITIONS.read().unwrap();
         let updates = radar_updates(
@@ -74,35 +75,35 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
             &all_positions,
         );
 
-        for update in updates {
-            match update {
-                RadarContactDelta::Add(rc) => {
-                    let new_subject = ResProtocolRequest::New(format!(
+        let _results = updates
+            .iter()
+            .map(|update| match update {
+                RadarContactDelta::Add(rc) => (
+                    ResProtocolRequest::New(format!(
                         "{}.{}",
                         resource_id.to_string(),
                         RADAR_CONTACTS
                     ))
-                    .to_string();
-                    let payload = serde_json::json!({ "params": rc });
-                    publish_message(ctx, &new_subject, payload)?;
-                }
-                RadarContactDelta::Remove(rid) => {
-                    let delete_subject = ResProtocolRequest::Delete(format!(
+                    .to_string()
+                    .clone(),
+                    serde_json::json!({"params": rc.clone()}),
+                ),
+                RadarContactDelta::Remove(rid) => (
+                    ResProtocolRequest::Delete(format!(
                         "{}.{}",
                         resource_id.to_string(),
                         RADAR_CONTACTS
                     ))
-                    .to_string();
-                    let payload = serde_json::json!({ "params": {"rid": rid.replace(":", ".")}});
-                    publish_message(ctx, &delete_subject, payload)?;
-                }
-                RadarContactDelta::Change(rid, rc) => {
-                    let set_subject = &format!("call.{}.set", rid);
-                    let payload = serde_json::json!({ "params": rc });
-                    publish_message(ctx, set_subject, payload)?;
-                }
-            }
-        }
+                    .to_string(),
+                    serde_json::json!({"params": {"rid": rid.replace(":", ".")}}),
+                ),
+                RadarContactDelta::Change(rid, rc) => (
+                    format!("call.{}.set", rid.clone()),
+                    serde_json::json!({"params": rc.clone()}),
+                ),
+            })
+            .map(|(subject, payload)| publish_message(ctx, &subject, payload))
+            .collect::<Vec<CallResult>>();
     }
     Ok(vec![])
 }
@@ -134,45 +135,45 @@ fn radar_updates(
     old_contacts: &HashMap<String, RadarContact>,
     all_positions: &HashMap<String, Position>,
 ) -> Vec<RadarContactDelta> {
-    let mut deltas: Vec<RadarContactDelta> = Vec::new();
     let contacts: Vec<String> = old_contacts
         .values()
         .map(|rc| rc.clone().entity_id)
         .collect();
-    for (k, v) in all_positions.iter() {
-        if contacts.contains(k) {
-            let mut rid: String = "".to_string();
-            for (key, val) in old_contacts.iter() {
-                if val.entity_id == *k {
-                    rid = key.to_string();
-                    break;
+    all_positions
+        .iter()
+        .filter_map(|(k, v)| {
+            if contacts.contains(k) {
+                let mut rid: String = "".to_string();
+                if let Some((key, _val)) = old_contacts.iter().find(|(_k, v)| v.entity_id == *k) {
+                    rid = key.to_string().replace(":", ".");
                 }
-            }
-            if within_radius(current_position, v, radar_receiver.radius) {
+                if within_radius(current_position, v, radar_receiver.radius) {
+                    let vector_to = current_position.vector_to(v);
+                    Some(RadarContactDelta::Change(
+                        rid,
+                        RadarContact {
+                            entity_id: k.clone().to_string(),
+                            distance: vector_to.mag,
+                            heading_xy: vector_to.heading_xy,
+                            heading_z: vector_to.heading_z,
+                        },
+                    ))
+                } else {
+                    Some(RadarContactDelta::Remove(rid))
+                }
+            } else if entity_id != k && within_radius(current_position, &v, radar_receiver.radius) {
                 let vector_to = current_position.vector_to(v);
-                deltas.push(RadarContactDelta::Change(
-                    rid.replace(":", "."),
-                    RadarContact {
-                        entity_id: k.clone().to_string(),
-                        distance: vector_to.mag,
-                        heading_xy: vector_to.heading_xy,
-                        heading_z: vector_to.heading_z,
-                    },
-                ));
+                Some(RadarContactDelta::Add(RadarContact {
+                    entity_id: k.clone().to_string(),
+                    distance: vector_to.mag,
+                    heading_xy: vector_to.heading_xy,
+                    heading_z: vector_to.heading_z,
+                }))
             } else {
-                deltas.push(RadarContactDelta::Remove(rid));
+                None
             }
-        } else if entity_id != k && within_radius(current_position, &v, radar_receiver.radius) {
-            let vector_to = current_position.vector_to(v);
-            deltas.push(RadarContactDelta::Add(RadarContact {
-                entity_id: k.clone().to_string(),
-                distance: vector_to.mag,
-                heading_xy: vector_to.heading_xy,
-                heading_z: vector_to.heading_z,
-            }));
-        }
-    }
-    deltas
+        })
+        .collect::<Vec<RadarContactDelta>>()
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -180,11 +181,6 @@ enum RadarContactDelta {
     Add(RadarContact),
     Remove(String),
     Change(String, RadarContact),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct PositionValue {
-    values: Position,
 }
 
 /// Receives messages on the subject `event.decs.components.{shard}.{entity}.position.change`
@@ -195,8 +191,8 @@ pub(crate) fn handle_entity_position_change(
     msg: messaging::BrokerMessage,
 ) -> CallResult {
     let subject: Vec<&str> = msg.subject.split('.').collect();
-    let position_value: PositionValue = serde_json::from_slice(&msg.body)?;
-    let position: Position = position_value.values;
+    let position_value: serde_json::Value = serde_json::from_slice(&msg.body)?;
+    let position: Position = serde_json::from_value::<Position>(position_value["values"].clone())?;
     POSITIONS
         .write()
         .unwrap()
