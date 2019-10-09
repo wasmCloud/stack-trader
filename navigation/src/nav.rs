@@ -72,7 +72,7 @@ fn process_frame(
     let target_pos = get_target_position(ctx, &target.rid)?;
 
     let nt = Target {
-        eta_ms: target_pos.eta_at(pos, &vel),
+        eta_ms: pos.eta_at(&target_pos, &vel),
         distance_km: pos.distance_to(&target_pos),
         rid: target.rid.clone(),
     };
