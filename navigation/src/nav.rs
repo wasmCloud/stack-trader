@@ -72,7 +72,7 @@ fn process_frame(
     let target_pos = get_target_position(ctx, &target.rid)?;
 
     let nt = Target {
-        eta_ms: target_pos.eta_at(pos, &vel),
+        eta_ms: pos.eta_at(&target_pos, &vel),
         distance_km: pos.distance_to(&target_pos),
         rid: target.rid.clone(),
     };
@@ -88,7 +88,9 @@ fn process_frame(
     };
 
     // If we are within THRESHOLD km of the target, automatically set velocity to zero
-    if nt.distance_km <= THRESHOLD_DISTANCE_KM {
+    // If we expect to arrive at the target in 150ms (about the span of 1 frame with some padding)
+    //  or less, stop
+    if nt.distance_km <= THRESHOLD_DISTANCE_KM || nt.eta_ms <= 150.0 {
         let payload = json!({ "params": Velocity{ mag: 0, ..*vel} });
         ctx.msg().publish(
             &format!("call.decs.components.{}.{}.velocity.set", shard, entity_id),

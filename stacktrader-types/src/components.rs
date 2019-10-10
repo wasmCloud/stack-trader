@@ -23,6 +23,9 @@ impl Position {
     /// does not currently take into account the direction. It assumes that you're heading
     /// toward the target.
     pub fn eta_at(self, target: &Position, vel: &Velocity) -> f64 {
+        if vel.mag == 0 {
+            return 0.0;
+        }
         let d = self.distance_to(target); // kilometers
         let time_h = d / f64::from(vel.mag);
         time_h * MS_PER_HOUR
