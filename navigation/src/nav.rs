@@ -88,7 +88,9 @@ fn process_frame(
     };
 
     // If we are within THRESHOLD km of the target, automatically set velocity to zero
-    if nt.distance_km <= THRESHOLD_DISTANCE_KM {
+    // If we expect to arrive at the target in 150ms (about the span of 1 frame with some padding)
+    //  or less, stop
+    if nt.distance_km <= THRESHOLD_DISTANCE_KM || nt.eta_ms <= 150.0 {
         let payload = json!({ "params": Velocity{ mag: 0, ..*vel} });
         ctx.msg().publish(
             &format!("call.decs.components.{}.{}.velocity.set", shard, entity_id),
