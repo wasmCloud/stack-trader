@@ -178,7 +178,6 @@ mod test {
         let v = p1.vector_to(&p2);
 
         assert_eq!(677, v.mag);
-        println!("Az diff: {}", -20.2379 - v.azimuth);
         assert!((-20.23792710183053 - v.azimuth) <= FLOATEPSILON);
         assert!((60.5169 - v.elevation) <= FLOATEPSILON);
     }
