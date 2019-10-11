@@ -3,6 +3,7 @@ let client = new ResClient('ws://localhost:8080');
 let root = document.getElementById("root");
 let player1 = document.getElementById("player1");
 
+/// Get list of systems discovered by the system manager
 client.get('decs.systems').then(systems => {
     systems.toArray().forEach(element => {
         var sys = document.createElement("div");
@@ -15,6 +16,7 @@ client.get('decs.systems').then(systems => {
     document.body.textContent = "Error getting model. Are NATS Server and Resgate running?";
 });
 
+/// Creating the_void shard and setting up player1 & demo
 client.get('decs.shards').then(shards => {
     setupPlayer1();
     setupRadarDemo();
@@ -27,13 +29,16 @@ client.get('decs.shards').then(shards => {
         element.on('change', c => {
             document.getElementById('shard').innerText = element.name + ' (' + c.current + '/' + element.capacity + ');'
         });
-        console.log(element);
     });
 }).catch(err => {
     console.log(err);
     document.body.textContent = "Error getting model. Are NATS Server and Resgate running?";
 });
 
+/**
+ * Helper function to create player1 and its necessary components of:
+ * position, velocity, radar_receiver
+ */
 let setupPlayer1 = () => {
     let position = { "x": 0.0, "y": 0.0, "z": 0.0 };
     let velocity = { "mag": 0, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
@@ -69,12 +74,16 @@ let setupPlayer1 = () => {
     })
 }
 
-let player1RadarContacts = (client) => {
+/**
+ * On a 2 second loop, attempt to get player1 radar_contacts
+ * This should happen immediately when discovering contacts, but just in case keep trying
+ * 
+ * This function gets contacts and defines onChange, onAdd and onRemove functions to update the contacts list
+ */
+let player1RadarContacts = () => {
     client.get('decs.components.the_void.player1.radar_contacts').then(res => {
         res._list.forEach(c => {
             c.on('change', _x => {
-                // console.log("CHANGE")
-                // console.log(res._list)
                 updateP1Contacts(res._list)
             })
         })
@@ -82,8 +91,6 @@ let player1RadarContacts = (client) => {
             updateP1Contacts(res._list)
         }
         res.on('remove', _c => {
-            // console.log("REMOVE")
-            // console.log(res._list)
             if (res._list && res._list.length > 1) {
                 updateP1Contacts(res._list)
             } else {
@@ -91,13 +98,9 @@ let player1RadarContacts = (client) => {
             }
         })
         res.on('add', change => {
-            // console.log("ADD")
-            // console.log(res._list)
             updateP1Contacts(res._list)
             if (change.item) {
                 change.item.on('change', c => {
-                    // console.log("CHANGE")
-                    // console.log(res._list)
                     updateP1Contacts(res._list)
                 })
             }
@@ -108,6 +111,10 @@ let player1RadarContacts = (client) => {
     })
 }
 
+/**
+ * Helper function to update the radar_contacts list in the UI
+ * @param reslist: Resgate's list of components in the collection of contacts
+ */
 let updateP1Contacts = (reslist) => {
     let table = document.createElement('table')
     reslist.forEach(c => {
@@ -123,6 +130,10 @@ let updateP1Contacts = (reslist) => {
     contacts.appendChild(table)
 }
 
+/**
+ * Function to navigate player1 towards a certain target
+ * @param {string} target: entity_id of target
+ */
 let navigateToTarget = (target) => {
     let p1target = {
         "rid": `decs.components.the_void.${target}`,
@@ -150,15 +161,23 @@ let navigateToTarget = (target) => {
     })
 }
 
+/**
+ * Helper function to create a naive entity with position and no velocity
+ * @param {String} name entity_id of new entity
+ * @param {Number} x x position (in km)
+ * @param {Number} y y posiiton (in km)
+ * @param {Number} z z position (in km)
+ */
 let setupEntity = (name, x, y, z) => {
     let position = { x, y, z };
     let velocity = { "mag": 0, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
-    // let radar_receiver = { "radius": 50.0 };
     client.call(`decs.components.the_void.${name}.velocity`, 'set', velocity);
     client.call(`decs.components.the_void.${name}.position`, 'set', position);
-    // client.call(`decs.components.the_void.${name}.radar_receiver`, 'set', radar_receiver);
 }
 
+/**
+ * Helper function to create non-player entities for demo purposes
+ */
 let setupRadarDemo = () => {
     setupEntity("asteroid", -1, -1, -1);
     setupEntity("iron_ore", 1, 1, 1);
@@ -166,15 +185,19 @@ let setupRadarDemo = () => {
     setupEntity("spaceship", 5, 5, 5);
     setupEntity("gold_ore", 9, 9, 9);
     setupEntity("starbase", 10, 10, 10);
+    //Timeout to show shard count updating with new entities
     setTimeout(() => {
-        console.log("new ent")
         setupEntity("enemy_spaceship", 12, 12, 12);
         setupEntity("enemy_spaceship2", 12, 12, 12);
         setupEntity("enemy_spaceship3", 12, 12, 12);
         setupEntity("enemy_spaceship5", 12, 12, 12);
     }, 5000)
 }
-let changeVelocity = (event) => {
+
+/**
+ * Function called from the UI's Change Velocity button to set player1's velocity
+ */
+let changeVelocity = (_event) => {
     let mag = Number.parseFloat(document.getElementById("magnitude").value);
     let ux = Number.parseFloat(document.getElementById("ux").value);
     let uy = Number.parseFloat(document.getElementById("uy").value);
