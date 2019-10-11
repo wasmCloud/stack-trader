@@ -141,8 +141,6 @@ mod test {
         assert_eq!(-0.8164965809277261, v.ux);
         assert_eq!(-0.4082482904638631, v.uy);
         assert_eq!(0.4082482904638631, v.uz);
-        // assert!((-26.565 - v.azimuth) <= FLOATEPSILON);
-        // assert!((114.1 - v.elevation) <= FLOATEPSILON);
     }
 
     #[test]
