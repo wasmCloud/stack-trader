@@ -20,3 +20,11 @@ span.heading {
 input {
     font-size: 14px;
 }
+
+tr {
+    cursor: pointer;
+}
+
+tr:hover {
+    background-color: lightgreen;
+}

@@ -100,10 +100,11 @@ services:
       - redis
     environment:
       - "PORT=9003"
-      - "RUST_LOG=info,cranelift_wasm=warn"
+      - "RUST_LOG=warn,cranelift_wasm=warn"
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
-      - "NATS_SUBSCRIPTION=get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.set"
+      - "NATS_SUBSCRIPTION=get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.*"
+      # - "NATS_SUBSCRIPTION=get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.set"
   component_mgr:
     image: "decscloud/component_mgr"
     expose:
@@ -138,9 +139,10 @@ services:
       - "RUST_LOG=warn,cranelift_wasm=warn"
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
-      - "NATS_SUBSCRIPTION=decs.frames.*.*,decs.system.registry"
+      - "NATS_SUBSCRIPTION=decs.frames.*.physics,decs.system.registry"
   radar:
-    build: "../../radar"
+    image: stacktrader/radar
+    # build: "../../radar"
     expose:
       - "9006"
     ports:
@@ -156,3 +158,21 @@ services:
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=decs.frames.*.radar,event.decs.components.*.*.position.change, decs.system.registry"
+  nav:
+    image: stacktrader/navigation
+    # build: "../../navigation"
+    expose:
+      - "9007"
+    ports:
+      - "9007:9007"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=decs.frames.*.navigation, decs.system.registry"

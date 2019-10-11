@@ -21,8 +21,12 @@ client.get('decs.shards').then(shards => {
 
     shards.toArray().forEach(element => {
         var shard = document.createElement("div");
+        shard.id = "shard"
         shard.innerText = element.name + ' (' + element.current + '/' + element.capacity + ');'
-        shardroot.appendChild(shard);
+        shardroot.appendChild(shard)
+        element.on('change', c => {
+            document.getElementById('shard').innerText = element.name + ' (' + c.current + '/' + element.capacity + ');'
+        });
         console.log(element);
     });
 }).catch(err => {
@@ -32,18 +36,20 @@ client.get('decs.shards').then(shards => {
 
 let setupPlayer1 = () => {
     let position = { "x": 0.0, "y": 0.0, "z": 0.0 };
-    let velocity = { "mag": 7200, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
-    let radar_receiver = { "radius": 5.0 };
+    let velocity = { "mag": 0, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
+    let radar_receiver = { "radius": 6.0 };
     client.call('decs.components.the_void.player1.velocity', 'set', velocity).then(res => {
-        document.getElementById("magnitude").value = velocity.mag;
-        document.getElementById("ux").value = velocity.ux;
-        document.getElementById("uy").value = velocity.uy;
-        document.getElementById("uz").value = velocity.uz;
-        client.on('change', change => {
-            document.getElementById("magnitude").value = change.mag;
-            document.getElementById("ux").value = change.ux;
-            document.getElementById("uy").value = change.uy;
-            document.getElementById("uz").value = change.uz;
+        client.get('decs.components.the_void.player1.velocity').then(vel => {
+            document.getElementById("magnitude").value = vel.mag;
+            document.getElementById("ux").value = vel.ux;
+            document.getElementById("uy").value = vel.uy;
+            document.getElementById("uz").value = vel.uz;
+            vel.on('change', _change => {
+                document.getElementById("magnitude").value = vel.mag;
+                document.getElementById("ux").value = vel.ux;
+                document.getElementById("uy").value = vel.uy;
+                document.getElementById("uz").value = vel.uz;
+            })
         })
     });
     var pos = document.createElement("div")
@@ -51,8 +57,9 @@ let setupPlayer1 = () => {
     player1.appendChild(pos)
     client.call('decs.components.the_void.player1.position', 'set', position).then(res => {
         client.get('decs.components.the_void.player1.position').then(position => {
+            pos.innerText = `x: ${position.x.toFixed(3)}\n y: ${position.y.toFixed(3)}\n z: ${position.z.toFixed(3)}`
             position.on('change', change => {
-                pos.innerText = `x: ${change.x.toFixed(3)}\n y: ${change.y.toFixed(3)}\n z: ${change.z.toFixed(3)}`
+                pos.innerText = `x: ${position.x.toFixed(3)}\n y: ${position.y.toFixed(3)}\n z: ${position.z.toFixed(3)}`
             });
         });
     });
@@ -66,36 +73,80 @@ let player1RadarContacts = (client) => {
     client.get('decs.components.the_void.player1.radar_contacts').then(res => {
         res._list.forEach(c => {
             c.on('change', _x => {
-                document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+                // console.log("CHANGE")
+                // console.log(res._list)
+                updateP1Contacts(res._list)
             })
         })
         if (res._list && res._list.length > 1) {
-            document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+            updateP1Contacts(res._list)
         }
-        res.on('remove', change => {
-            console.log("REMOVE")
+        res.on('remove', _c => {
+            // console.log("REMOVE")
+            // console.log(res._list)
             if (res._list && res._list.length > 1) {
-                document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+                updateP1Contacts(res._list)
             } else {
                 document.getElementById("player1_contacts").innerText = 'No current contacts';
             }
-            console.log(res._list)
         })
         res.on('add', change => {
-            console.log("ADD")
-            document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
+            // console.log("ADD")
+            // console.log(res._list)
+            updateP1Contacts(res._list)
             if (change.item) {
                 change.item.on('change', c => {
-                    console.log("CHANGE")
-                    document.getElementById("player1_contacts").innerText = res._list.map(c => `${c.entity_id} is ${c.distance} km away`).reduce((m, i) => m + '\n' + i);
-                    console.log(res._list)
+                    // console.log("CHANGE")
+                    // console.log(res._list)
+                    updateP1Contacts(res._list)
                 })
             }
-            console.log(res._list)
         })
     }).catch(err => {
         setTimeout(() =>
-            player1RadarContacts(client), 500);
+            player1RadarContacts(client), 2000);
+    })
+}
+
+let updateP1Contacts = (reslist) => {
+    let table = document.createElement('table')
+    reslist.forEach(c => {
+        let tr = document.createElement('tr')
+        tr.onclick = () => navigateToTarget(c.entity_id)
+        let s = document.createElement('span')
+        s.innerText = `${c.entity_id} is ${c.distance} km away`
+        tr.appendChild(s)
+        table.appendChild(tr)
+    })
+    let contacts = document.getElementById("player1_contacts")
+    contacts.removeChild(contacts.firstChild)
+    contacts.appendChild(table)
+}
+
+let navigateToTarget = (target) => {
+    let p1target = {
+        "rid": `decs.components.the_void.${target}`,
+        "eta_ms": 999999.9,
+        "distance_km": 9990.0
+    }
+    client.call(`decs.components.the_void.player1.target`, 'set', p1target).then(_res => {
+        client.get(`decs.components.the_void.player1.target`).then(res => {
+            document.getElementById("player1_target").innerText = `Target: ${res.rid.split(".")[3]}\nETA: Calculating...\nDistance: Calculating...`
+            res.on('change', change => {
+                if (change.eta_ms != 999999.9) {
+                    if (res.eta_ms <= 150.0) {
+                        document.getElementById("player1_target").innerText = `Target: ${res.rid.split(".")[3]}\nETA: Target within range\n Distance: ${res.distance_km.toPrecision(3)} km`
+                    } else {
+                        let rid = change.rid ? change.rid : res.rid;
+                        let eta = change.eta_ms ? change.eta_ms : res.eta_ms;
+                        let dis = change.distance_km ? change.distance_km : res.distance_km;
+                        let formatETA = `${Math.floor(eta / 1000 / 60 / 60)}h/${Math.floor(eta / 1000 / 60)}m/${(eta / 1000).toPrecision(2)}s`
+                        document.getElementById("player1_target").innerText = `Target: ${rid.split(".")[3]}\nETA: ${formatETA}\n Distance: ${dis.toPrecision(3)} km`
+                    }
+                }
+            })
+        })
+
     })
 }
 
@@ -109,12 +160,19 @@ let setupEntity = (name, x, y, z) => {
 }
 
 let setupRadarDemo = () => {
-    setupEntity("iron_ore", 1, 1, 2);
+    setupEntity("asteroid", -1, -1, -1);
+    setupEntity("iron_ore", 1, 1, 1);
     setupEntity("money", 3, 3, 3);
     setupEntity("spaceship", 5, 5, 5);
-    setupEntity("gold_ore", 7, 8, 7);
-    setupEntity("starbase", 9, 9, 9);
-    setupEntity("enemy_spaceship", 14, 14, 14);
+    setupEntity("gold_ore", 9, 9, 9);
+    setupEntity("starbase", 10, 10, 10);
+    setTimeout(() => {
+        console.log("new ent")
+        setupEntity("enemy_spaceship", 12, 12, 12);
+        setupEntity("enemy_spaceship2", 12, 12, 12);
+        setupEntity("enemy_spaceship3", 12, 12, 12);
+        setupEntity("enemy_spaceship5", 12, 12, 12);
+    }, 5000)
 }
 let changeVelocity = (event) => {
     let mag = Number.parseFloat(document.getElementById("magnitude").value);
@@ -122,5 +180,5 @@ let changeVelocity = (event) => {
     let uy = Number.parseFloat(document.getElementById("uy").value);
     let uz = Number.parseFloat(document.getElementById("uz").value);
     let velocity = { mag, ux, uy, uz };
-    client.call('decs.components.the_void.player1.velocity', 'set', velocity);
+    client.call('decs.components.the_void.player1.velocity', 'set', velocity)
 }
