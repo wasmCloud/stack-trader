@@ -24,7 +24,7 @@ bench:
 
 build:
 	@$(CARGO) build
-	wascap sign ../target/wasm32-unknown-unknown/debug/navigation.wasm ../target/wasm32-unknown-unknown/debug/navigation.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
+	wascap sign ../target/wasm32-unknown-unknown/debug/radar.wasm ../target/wasm32-unknown-unknown/debug/radar_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
 
 check:
 	@$(CARGO) check
@@ -43,7 +43,7 @@ update:
 
 release:
 	@$(CARGO) build --release
-	wascap sign ../target/wasm32-unknown-unknown/release/navigation.wasm ../target/wasm32-unknown-unknown/release/navigation_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
+	wascap sign ../target/wasm32-unknown-unknown/release/radar.wasm ../target/wasm32-unknown-unknown/release/radar_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
 
 docker: release
-	docker build -f ../Dockerfile.navigation -t stacktrader/navigation ../
+	docker build -t radar .

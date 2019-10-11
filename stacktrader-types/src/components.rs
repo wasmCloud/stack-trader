@@ -33,14 +33,19 @@ impl Position {
 
     /// Computes the unit vector pointing from source to target and the magnitude
     /// of the resulting vector is the distance to that target
-    pub fn vector_to(self, target: &Position) -> Vector {
+    pub fn vector_to(self, target: &Position) -> TargetVector {
         let ab = (target.x - self.x, target.y - self.y, target.z - self.z);
         let d = self.distance_to(&target);
-        Vector {
+        let azimuth = ab.1.atan2(ab.0) * 180.0 / std::f64::consts::PI;
+        let elevation = (ab.2 / d).acos() * 180.0 / std::f64::consts::PI;
+
+        TargetVector {
             mag: d.round() as u32,
             ux: ab.0 / d,
             uy: ab.1 / d,
             uz: ab.2 / d,
+            azimuth,
+            elevation,
         }
     }
 }
@@ -63,6 +68,16 @@ impl Velocity {
 
 pub type Vector = Velocity;
 
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct TargetVector {
+    pub mag: u32,
+    pub ux: f64,
+    pub uy: f64,
+    pub uz: f64,
+    pub azimuth: f64,
+    pub elevation: f64,
+}
+
 /// Represents a selected target for the navigation system.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Target {
@@ -71,9 +86,28 @@ pub struct Target {
     pub distance_km: f64, // Distance to the target in kilometers
 }
 
+/// Represents a radar component that scans for entities around the entity with the receiver.
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct RadarReceiver {
+    pub radius: f64, // The range of the radar as a radius in km
+}
+
+/// Represents a single radar contact
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct RadarContact {
+    pub entity_id: String,
+    pub distance: u32,
+    pub azimuth: f64,
+    pub elevation: f64,
+}
+
 #[cfg(test)]
 mod test {
     use super::{Position, Velocity};
+
+    const FLOATEPSILON: f64 = std::f64::EPSILON;
+    const PI: f64 = std::f64::consts::PI;
+    const DEGREE_CONVERSION: f64 = 180.0 / PI;
 
     #[test]
     fn simple_distance_1() {
@@ -107,5 +141,61 @@ mod test {
         assert_eq!(-0.8164965809277261, v.ux);
         assert_eq!(-0.4082482904638631, v.uy);
         assert_eq!(0.4082482904638631, v.uz);
+    }
+
+    #[test]
+    fn simple_azimuth_elevation() {
+        let p1 = Position::new(0.0, 0.0, 0.0);
+        let p2 = Position::new(2.0 * 3.0_f64.sqrt(), 6.0, -4.0);
+
+        // distance = 8
+        // azimuth = pi/3, elevation = 2pi/3
+
+        let v = p1.vector_to(&p2);
+
+        assert_eq!(8, v.mag);
+        assert!((PI / 3.0 - v.azimuth / DEGREE_CONVERSION) <= FLOATEPSILON);
+        assert!((2.0 * PI / 3.0 - v.elevation / DEGREE_CONVERSION) <= FLOATEPSILON);
+
+        assert!((PI / 3.0 * DEGREE_CONVERSION - v.azimuth) <= FLOATEPSILON);
+        assert!((2.0 * PI / 3.0 * DEGREE_CONVERSION - v.elevation) <= FLOATEPSILON);
+    }
+
+    #[test]
+    fn complicated_azimuth_elevation() {
+        let p1 = Position::new(647.5, 143.6, 987.0);
+        let p2 = Position::new(1_200.12, -60.14, 654.0);
+
+        // dx = 552.61999999
+        // dy = -203.74
+        // dz = -333
+        // distance = 676.6002
+        // azimuth = -20.2379 deg
+        // elevation = 60.5169 deg
+
+        let v = p1.vector_to(&p2);
+
+        assert_eq!(677, v.mag);
+        assert!((-20.23792710183053 - v.azimuth) <= FLOATEPSILON);
+        assert!((60.5169 - v.elevation) <= FLOATEPSILON);
+    }
+
+    #[test]
+    fn complicated_reverse_azimuth_elevation() {
+        let p1 = Position::new(1_200.12, -60.14, 654.0);
+        let p2 = Position::new(647.5, 143.6, 987.0);
+
+        // dx = -552.61999999
+        // dy = 203.74
+        // dz = 333
+        // distance = 676.6002
+        // azimuth = 159.762 deg
+        // elevation = 60.5169 deg
+
+        let v = p1.vector_to(&p2);
+
+        assert_eq!(677, v.mag);
+        assert!((159.762 - v.azimuth) <= FLOATEPSILON);
+        assert!((60.5169 - v.elevation) <= FLOATEPSILON);
     }
 }
