@@ -4,7 +4,8 @@ members = [
     "navigation",
     "physics",
     "stacktrader-types",
-    "radar"
+    "radar",
+    "mining"
 ]
 
 [profile.release]
