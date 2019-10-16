@@ -103,9 +103,9 @@ services:
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.*"
+      # - "NATS_SUBSCRIPTION=get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.set"
   component_mgr:
-    # image: "decscloud/component_mgr"
-    build: "../../../decs-cloud/component-mgr"
+    image: "decscloud/component_mgr"
     expose:
       - "9004"
     ports:

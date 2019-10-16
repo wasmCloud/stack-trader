@@ -101,6 +101,21 @@ pub struct RadarContact {
     pub elevation: f64,
 }
 
+<<<<<<< HEAD
+=======
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct MiningExtractor {
+    pub target: String, // Fully-qualified ID of the mining resource component to which extractor is attached
+    pub remaining_ms: f64, // Time remaining for extraction
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct MiningResource {
+    pub stack_type: String, // Type of the stack ("spendy", "tasty", or "critical")
+    pub qty: u32,           // Quantity of stack item in the resource
+}
+
+>>>>>>> 15ed66e500dde51773cc61bed5e4c7d58dfe0a59
 #[cfg(test)]
 mod test {
     use super::{Position, Velocity};
