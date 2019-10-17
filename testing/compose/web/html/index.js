@@ -157,7 +157,6 @@ let navigateToTarget = (target) => {
                 }
             })
         })
-
     })
 }
 

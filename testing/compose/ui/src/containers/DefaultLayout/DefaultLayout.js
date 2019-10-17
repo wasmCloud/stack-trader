@@ -34,11 +34,11 @@ class DefaultLayout extends Component {
   render() {
     return (
       <div className="app">
-        <AppHeader fixed>
+        {/* <AppHeader fixed>
           <Suspense fallback={this.loading()}>
             <DefaultHeader onLogout={e => this.signOut(e)} />
           </Suspense>
-        </AppHeader>
+        </AppHeader> */}
         <div className="app-body">
           <AppSidebar fixed display="lg">
             <AppSidebarHeader />
@@ -66,7 +66,6 @@ class DefaultLayout extends Component {
                         )} />
                     ) : (null);
                   })}
-                  {/* <Redirect from="/" to="/dashboard" /> */}
                   <Redirect from="/" to="/stacktrader" />
                 </Switch>
               </Suspense>
