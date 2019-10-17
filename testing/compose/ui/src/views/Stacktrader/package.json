@@ -1,0 +1,6 @@
+{
+  "name": "Stacktrader",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./Stacktrader.js"
+}

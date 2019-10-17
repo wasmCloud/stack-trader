@@ -45,7 +45,7 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
 
         let old_contacts: HashMap<String, RadarContact> = ctx
             .kv()
-            .set_members(radar_contacts_key)?
+            .list_range(radar_contacts_key, 0, -1)? // Get all items of a list from index 0 to the last item
             .iter()
             .filter_map(|c| {
                 if let Ok(Some(contact_str)) = ctx.kv().get(&c.replace(".", ":")) {

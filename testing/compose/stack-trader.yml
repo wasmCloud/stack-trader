@@ -12,21 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: "2"
+version: "3"
 
 services:
   nginx:
     image: "nginx:latest"
     volumes:
-      - ./web/nginx.conf:/etc/nginx/nginx.conf
-      - ./web/html:/etc/nginx/www
+      - ./ui/nginx.conf:/etc/nginx/nginx.conf
+      - ./ui/build:/etc/nginx/www
     expose:
       - "80"
     ports:
       - "80:80"
   nats:
     image: "nats:2.0.0"
-    #command: "-DV"
     expose:
       - "4222"
     ports:
@@ -142,7 +141,6 @@ services:
       - "NATS_SUBSCRIPTION=decs.frames.*.physics,decs.system.registry"
   radar:
     image: stacktrader/radar
-    # build: "../../radar"
     expose:
       - "9006"
     ports:
@@ -160,7 +158,6 @@ services:
       - "NATS_SUBSCRIPTION=decs.frames.*.radar,event.decs.components.*.*.position.change, decs.system.registry"
   nav:
     image: stacktrader/navigation
-    # build: "../../navigation"
     expose:
       - "9007"
     ports:
