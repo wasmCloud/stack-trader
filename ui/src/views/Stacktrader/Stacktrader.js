@@ -156,32 +156,33 @@ class Stacktrader extends Component {
      * CoreUI Blue: 20a8d8
      * CoreUI Green: 4dbd74
      */
-    this.setupEntity("sapphire_asteroid", -1, -1, 0, "20a8d8");
-    this.setupEntity("ruby_asteroid", 2, 4, 0, "f86c6b");
-    this.setupEntity("gold_asteroid", -2, 4, 0, "ffc107");
-    this.setupEntity("friendly_spaceship", 10, 9, 0, "4dbd74");
-    this.setupEntity("enemy_spaceship", 14, 7, 0, "f86c6b");
-    this.setupEntity("starbase", 10, 10, 0, "ffc107");
-    this.setupEntity("unknown_spaceship", 20, 20, 0, "ffc107");
+    this.setupEntity("sapphire_asteroid", "Sapphire Asteroid", -2, -2, -1, "20a8d8");
+    this.setupEntity("sapphire_asteroid", "Emerald Asteroid", -2, 2, -1, "20a8d8");
+    this.setupEntity("ruby_asteroid", "Ruby Asteroid", 2, -2, 1, "f86c6b");
+    this.setupEntity("gold_asteroid", "Gold Asteroid", 2, 2, 2, "ffc107");
+    this.setupEntity("friendly_spaceship", "Friendly Spaceship", 10, 9, 0, "4dbd74");
+    this.setupEntity("enemy_spaceship", "Enemy Spaceship", 14, 7, 0, "f86c6b");
+    this.setupEntity("starbase_alpha", "Starbase Alpha", 10, 10, 0, "ffc107");
+    this.setupEntity("unknown_spaceship", "Unknown Spaceship", 20, 20, 0, "ffc107");
   }
 
-  setupEntity(name, x, y, z, color) {
+  setupEntity(entity_id, name, x, y, z, color) {
     let position = { x, y, z };
     let velocity = { "mag": 0, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
     let transponder = null;
-    if (name.includes("asteroid")) {
+    if (entity_id.includes("asteroid")) {
       transponder = {
         object_type: "asteroid",
         display_name: name,
         hex_color: color
       }
-    } else if (name.includes("ship")) {
+    } else if (entity_id.includes("ship")) {
       transponder = {
         object_type: "ship",
         display_name: name,
         hex_color: color
       }
-    } else if (name.includes("starbase")) {
+    } else if (entity_id.includes("starbase")) {
       transponder = {
         object_type: "starbase",
         display_name: name,
@@ -190,9 +191,9 @@ class Stacktrader extends Component {
     } else {
       return
     }
-    this.client.call(`decs.components.the_void.${name}.transponder`, 'set', transponder);
-    this.client.call(`decs.components.the_void.${name}.velocity`, 'set', velocity);
-    this.client.call(`decs.components.the_void.${name}.position`, 'set', position);
+    this.client.call(`decs.components.the_void.${entity_id}.transponder`, 'set', transponder);
+    this.client.call(`decs.components.the_void.${entity_id}.velocity`, 'set', velocity);
+    this.client.call(`decs.components.the_void.${entity_id}.position`, 'set', position);
   }
   // Demo functions ends
 
@@ -286,25 +287,29 @@ class Stacktrader extends Component {
                 <Table hover responsive className="table-outline mb-0 d-sm-table">
                   <thead className="thead-light">
                     <tr>
-                      {/* <th className="text-center"><i className="icon-dashboard"></i></th> */}
+                      <th className="text-center">Icon</th>
                       <th>Contact</th>
                       <th>Distance</th>
-                      <th>Angle</th>
-                      {/* <th>Elevation</th> */}
-                      {/* <th>Navigation</th> */}
+                      <th className="text-center">Angle</th>
+                      <th className="text-center">Elevation</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {this.state.contacts && Array.from(this.state.contacts).map((contact, idx) =>
+                    {this.state.contacts && Array.from(this.state.contacts).sort((a, b) => a.distance_xy - b.distance_xy).map((contact, idx) =>
                       <tr style={{ cursor: 'pointer' }} onClick={() => this.navigateToTarget(`decs.components.the_void.${contact.entity_id}`)}>
-                        {/* <td className="text-center">
-                          <div className="avatar">
-                            <img src={`assets/img/avatars/${idx + 1}.jpg`} className="img-avatar" alt="admin@bootstrapmaster.com" />
-                            <span className="avatar-status badge-success"></span>
+                        <td className="text-center">
+                          <div>
+                            <span style={{
+                              position: "relative",
+                              color: `#${contact.transponder.hex_color}`,
+                              transform: `rotate(${contact.transponder.object_type === "ship" ? 180 : 0}deg)`
+                            }} className={`fa ${contact.transponder.object_type === "asteroid" ? "fa-bullseye" :
+                              contact.transponder.object_type === "ship" ? "fa-space-shuttle" :
+                                contact.transponder.object_type === "starbase" ? "fa-fort-awesome" : "fa-warning"} fa-lg`}></span>
                           </div>
-                        </td> */}
+                        </td>
                         <td>
-                          <div>{contact.entity_id}</div>
+                          <div>{contact.transponder.display_name}</div>
                         </td>
                         <td>
                           <div className="clearfix">
@@ -314,15 +319,16 @@ class Stacktrader extends Component {
                           </div>
                           <Progress animated className="mb-3" color={(Number.parseFloat(contact.distance) / 6.0) > 0.75 ? "warning" : "success"} value={100 * (Number.parseFloat(contact.distance) / 6.0)} />
                         </td>
-                        <td>
-                          {contact.azimuth ? contact.azimuth.toPrecision(3) : "NaN"}
+                        <td className="text-center">
+                          <div style={{ transform: `rotate(${contact.azimuth <= 180 ? 90 - contact.azimuth : contact.azimuth - 90}deg)` }}>
+                            <i className="icon-arrow-up-circle font-2xl"></i>
+                          </div>
                         </td>
-                        {/* <td>
-                          {contact.elevation ? contact.elevation.toPrecision(3) : "idk"}
-                        </td> */}
-                        {/* <td className="text-center">
-                      <i className="icon-cursor"></i>
-                    </td> */}
+                        <td className="text-center">
+                          <div>
+                            <i className={`${contact.elevation === 90 ? "icon-arrow-right-circle" : contact.elevation < 90 ? "icon-arrow-up-circle" : "icon-arrow-down-circle"} font-2xl`}></i>
+                          </div>
+                        </td>
                       </tr>
                     )}
                   </tbody>

@@ -50,12 +50,12 @@ class Radar extends Component {
             let icon = contact.transponder.object_type === "asteroid" ? "fa-bullseye" :
                 contact.transponder.object_type === "ship" ? "fa-space-shuttle" :
                     contact.transponder.object_type === "starbase" ? "fa-fort-awesome" : "fa-warning"
-            return <span style={style} className={`dot fa ${icon} fa-lg`}></span>
+            return <span style={style} className={`dot radar-icon fa ${icon} fa-lg`}></span>
         })
         return (
             <div id="radar-container">
                 <div id="radar" className="animated">
-                    <i className="player-rocket icon-rocket icons font-2xl"><i></i></i>
+                    <i className="player-rocket radar-icon icon-rocket icons font-2xl"><i></i></i>
                     <div id="guides">
                         <div className="circle"></div>
                         {dots}

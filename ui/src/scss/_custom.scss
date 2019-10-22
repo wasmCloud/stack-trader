@@ -52,15 +52,8 @@
 .fa-rocket:before,
 .fa-space-shuttle:before,
 .fa-fort-awesome:before,
-.fa-bullseye,
+.fa-bullseye:before,
 .player-rocket:before {
-  position: absolute;
-  height: 0;
-  width: 0;
-  top: 0;
-  left: 0;
-  right: 34px;
-  bottom: 0;
   margin: auto;
 }
 
@@ -72,11 +65,27 @@
   transform: rotate(180deg);
 }
 
+.radar-icon:before {
+  position: absolute;
+  height: 0;
+  width: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+}
+
+// .fa-fort-awesome:before {
+// bottom: 30px;
+// }
+
 i.player-rocket:before {
   color: lightgreen;
   transform: rotate(-45deg);
-  margin: auto;
+  right: 34px;
 }
+
 #radar.animated .dot {
   background: #c5d4c9;
   position: absolute;
