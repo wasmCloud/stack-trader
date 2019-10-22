@@ -73,7 +73,7 @@ fn process_frame(
 
     let nt = Target {
         eta_ms: pos.eta_at(&target_pos, &vel),
-        distance_km: pos.distance_to(&target_pos),
+        distance_km: pos.distance_to_3d(&target_pos),
         rid: target.rid.clone(),
     };
 

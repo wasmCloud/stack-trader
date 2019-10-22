@@ -58,6 +58,7 @@
     "react-text-mask-hoc": "^0.11.0",
     "react-toastify": "^5.2.1",
     "reactstrap": "^8.0.0",
+    "resclient": "^2.0.5",
     "simple-line-icons": "^2.4.1",
     "spinkit": "1.2.5",
     "yup": "^0.27.0"

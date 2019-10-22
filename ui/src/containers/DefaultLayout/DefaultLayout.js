@@ -66,7 +66,7 @@ class DefaultLayout extends Component {
                         )} />
                     ) : (null);
                   })}
-                  <Redirect from="/" to="/stacktrader" />
+                  <Redirect from="/" to="/login" />
                 </Switch>
               </Suspense>
             </Container>

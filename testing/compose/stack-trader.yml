@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: "3"
+version: "4"
 
 services:
   nginx:
     image: "nginx:latest"
     volumes:
-      - ./ui/nginx.conf:/etc/nginx/nginx.conf
-      - ./ui/build:/etc/nginx/www
+      - ../../ui/nginx.conf:/etc/nginx/nginx.conf
+      - ../../ui/build:/etc/nginx/www
     expose:
       - "80"
     ports:
@@ -103,7 +103,6 @@ services:
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.*"
-      # - "NATS_SUBSCRIPTION=get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.set"
   component_mgr:
     image: "decscloud/component_mgr"
     expose:

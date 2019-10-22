@@ -1,3 +1,5 @@
+extern crate decscloud_codec as codec;
+
 const MS_PER_HOUR: f64 = 3_600_000.0;
 
 /// Represents a position in 3-dimensional space, assumed unit is Kilometers
@@ -14,19 +16,24 @@ impl Position {
     }
 
     /// Computes the straight-line 3-dimensional distance to the target
-    pub fn distance_to(&self, target: &Position) -> f64 {
+    pub fn distance_to_3d(&self, target: &Position) -> f64 {
         ((self.x - target.x).powi(2) + (self.y - target.y).powi(2) + (self.z - target.z).powi(2))
             .sqrt()
     }
 
+    /// Computes the straight-line 2-dimensional distance to the target
+    pub fn distance_to_2d(&self, target: &Position) -> f64 {
+        ((self.x - target.x).powi(2) + (self.y - target.y).powi(2)).sqrt()
+    }
+
     /// Computes the time (in milliseconds) to the target based on the current position and velocity. This
-    /// does not currently take into account the direction. It assumes that you're heading
+    /// does not currdistance_to into account the direction. It assumes that you're heading
     /// toward the target.
     pub fn eta_at(self, target: &Position, vel: &Velocity) -> f64 {
         if vel.mag == 0 {
             return 0.0;
         }
-        let d = self.distance_to(target); // kilometers
+        let d = self.distance_to_3d(target); // kilometers
         let time_h = d / f64::from(vel.mag);
         time_h * MS_PER_HOUR
     }
@@ -35,15 +42,17 @@ impl Position {
     /// of the resulting vector is the distance to that target
     pub fn vector_to(self, target: &Position) -> TargetVector {
         let ab = (target.x - self.x, target.y - self.y, target.z - self.z);
-        let d = self.distance_to(&target);
+        let d = self.distance_to_3d(&target);
         let azimuth = ab.1.atan2(ab.0) * 180.0 / std::f64::consts::PI;
         let elevation = (ab.2 / d).acos() * 180.0 / std::f64::consts::PI;
+        let distance_xy = self.distance_to_2d(&target).round() as u32;
 
         TargetVector {
             mag: d.round() as u32,
             ux: ab.0 / d,
             uy: ab.1 / d,
             uz: ab.2 / d,
+            distance_xy,
             azimuth,
             elevation,
         }
@@ -74,6 +83,7 @@ pub struct TargetVector {
     pub ux: f64,
     pub uy: f64,
     pub uz: f64,
+    pub distance_xy: u32,
     pub azimuth: f64,
     pub elevation: f64,
 }
@@ -97,8 +107,33 @@ pub struct RadarReceiver {
 pub struct RadarContact {
     pub entity_id: String,
     pub distance: u32,
+    pub distance_xy: u32,
     pub azimuth: f64,
     pub elevation: f64,
+    pub transponder: codec::gateway::ResourceIdentifier,
+}
+
+/// Represents a transponder component for a radar contact that dictates how it should be displayed in the game UI
+/// object_type should be ["starbase" | "ship" | "asteroid"]
+/// display_name should be the name to display on the UI.
+/// hex_color is 6 digit hex color code of corresponding object
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct RadarTransponder {
+    pub object_type: String,
+    pub display_name: String,
+    pub hex_color: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct MiningExtractor {
+    pub target: String, // Fully-qualified ID of the mining resource component to which extractor is attached
+    pub remaining_ms: f64, // Time remaining for extraction
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+pub struct MiningResource {
+    pub stack_type: String, // Type of the stack ("spendy", "tasty", or "critical")
+    pub qty: u32,           // Quantity of stack item in the resource
 }
 
 #[cfg(test)]
@@ -107,14 +142,14 @@ mod test {
 
     const FLOATEPSILON: f64 = std::f64::EPSILON;
     const PI: f64 = std::f64::consts::PI;
-    const DEGREE_CONVERSION: f64 = 180.0 / PI;
+    const DEGREE_CONVERSION: f64 = 180_f64 / PI;
 
     #[test]
     fn simple_distance_1() {
         let p1 = Position::new(5.0, 7.0, 9.0);
         let p2 = Position::new(10.0, 20.0, 20.0);
 
-        assert_eq!(17.0, p1.distance_to(&p2).trunc());
+        assert_eq!(17.0, p1.distance_to_3d(&p2).trunc());
     }
 
     #[test]
@@ -141,6 +176,22 @@ mod test {
         assert_eq!(-0.8164965809277261, v.ux);
         assert_eq!(-0.4082482904638631, v.uy);
         assert_eq!(0.4082482904638631, v.uz);
+    }
+
+    #[test]
+    fn distance_2d_3d() {
+        let p1 = Position::new(0.0, -5.0, -2.0);
+        let p2 = Position::new(-9.0, 10.0, 7.0);
+
+        let d3 = p1.distance_to_3d(&p2);
+        let d2 = p1.distance_to_2d(&p2);
+
+        let real_d2 = ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2)).sqrt();
+        let real_d3 =
+            ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2) + (p2.z - p1.z).powi(2)).sqrt();
+
+        assert_eq!(real_d2, d2);
+        assert_eq!(real_d3, d3);
     }
 
     #[test]

@@ -1,94 +1,16 @@
-import React, { Component, lazy, Suspense } from 'react';
-import { Bar, Line, Polar, Chart } from 'react-chartjs-2';
+import React, { Component } from 'react';
 import {
-  Badge,
-  Button,
-  ButtonDropdown,
-  ButtonGroup,
-  ButtonToolbar,
   Card,
   CardBody,
-  CardFooter,
   CardHeader,
-  CardTitle,
   Col,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownToggle,
   Progress,
   Row,
   Table,
 } from 'reactstrap';
-import { CustomTooltips } from '@coreui/coreui-plugin-chartjs-custom-tooltips';
-import { getStyle, hexToRgba } from '@coreui/coreui-pro/dist/js/coreui-utilities'
+import Radar from './Radar'
 
 import ResClient from 'resclient';
-
-const client = new ResClient('ws://localhost:8080')
-
-const Widget03 = lazy(() => import('../Widgets/Widget03'));
-
-const brandPrimary = getStyle('--primary')
-const brandSuccess = getStyle('--success')
-const brandInfo = getStyle('--info')
-const brandWarning = getStyle('--warning')
-const brandDanger = getStyle('--danger')
-
-// Card Chart 2
-const cardChartData2 = {
-  labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-  datasets: [
-    {
-      label: 'My First dataset',
-      backgroundColor: brandInfo,
-      borderColor: 'rgba(255,255,255,.55)',
-      data: [1, 18, 9, 17, 34, 22, 11],
-    },
-  ],
-};
-
-const polar = {
-  datasets: [
-    {
-      data: [
-        2,
-        6,
-        4,
-        5,
-        3,
-      ],
-      backgroundColor: [
-        // 'rgba(0,0,0,0.0)'
-        '#FF6384',
-        '#4BC0C0',
-        '#FFCE56',
-        '#E7E9ED',
-        '#36A2EB',
-      ],
-      borderColor: 'rgba(0,0,0,0.0)',
-      label: 'My dataset' // for legend
-    }],
-  labels: [
-    'Enemy spaceship',
-    'Starbase',
-    'Gold ore',
-    'Player 2',
-    'Asteroid',
-  ],
-};
-
-const options = {
-  tooltips: {
-    enabled: false,
-    custom: CustomTooltips
-  },
-  maintainAspectRatio: false,
-  animation: {
-    animateRotate: false,
-    animateScale: true,
-  }
-}
 
 class Position {
   x;
@@ -117,17 +39,21 @@ class Velocity {
 }
 
 class Stacktrader extends Component {
+  client;
+
   constructor(props) {
     super(props);
 
+    console.dir(props)
+
     this.toggle = this.toggle.bind(this);
-    this.onRadioBtnClick = this.onRadioBtnClick.bind(this);
+
+    this.client = new ResClient('ws://localhost:8080')
 
     this.state = {
       dropdownOpen: false,
-      radioSelected: 2,
-      entity: "",
-      position: new Position(0.0, 0.0, 4.0),
+      entity_id: "",
+      position: new Position(0.0, 0.0, 0.0),
       velocity: new Velocity(0, 0.0, 0.0, 0.0),
       contacts: [],
       target: null
@@ -135,13 +61,11 @@ class Stacktrader extends Component {
   }
 
   componentDidMount() {
-    this.setupPlayer1();
+    this.setupPlayer("Player1");
   }
 
-  setupPlayer1() {
-    this.setState({
-      entity: "Player1",
-    })
+  setupPlayer(entity_id) {
+    this.setState({ entity_id })
     this.setupLocalDemo();
   }
 
@@ -170,8 +94,8 @@ class Stacktrader extends Component {
       "eta_ms": 999999.9,
       "distance_km": 9990.0
     }
-    client.call(`decs.components.the_void.Player1.target`, 'set', p1target).then(_res => {
-      client.get(`decs.components.the_void.Player1.target`).then(target => {
+    this.client.call(`decs.components.the_void.Player1.target`, 'set', p1target).then(_res => {
+      this.client.get(`decs.components.the_void.Player1.target`).then(target => {
         this.setState({ target })
         target.on('change', this.onUpdate)
       })
@@ -184,26 +108,26 @@ class Stacktrader extends Component {
 
   // Demo functions begin
   setupLocalDemo() {
-    client.get('decs.shards').then(_shards => {
+    this.client.get('decs.shards').then(_shards => {
       let position = this.state.position;
       let velocity = this.state.velocity;
       let radar_receiver = { "radius": 6.0 };
-      let entity = this.state.entity
+      let entity = this.state.entity_id
 
-      client.call(`decs.components.the_void.${entity}.velocity`, 'set', velocity).then(_res => {
-        client.get(`decs.components.the_void.${entity}.velocity`).then(velocity => {
+      this.client.call(`decs.components.the_void.${entity}.velocity`, 'set', velocity).then(_res => {
+        this.client.get(`decs.components.the_void.${entity}.velocity`).then(velocity => {
           this.setState({ velocity })
           velocity.on('change', this.handleVelocityChange)
-          client.call(`decs.components.the_void.${entity}.velocity`, 'set', { "mag": 7200, "ux": 1.0, "uy": 1.0, "uz": 0.0 })
+          this.client.call(`decs.components.the_void.${entity}.velocity`, 'set', { "mag": 1800, "ux": 1.0, "uy": 1.0, "uz": 0.0 })
         })
       });
-      client.call(`decs.components.the_void.${entity}.position`, 'set', position).then(_res => {
-        client.get(`decs.components.the_void.${entity}.position`).then(position => {
+      this.client.call(`decs.components.the_void.${entity}.position`, 'set', position).then(_res => {
+        this.client.get(`decs.components.the_void.${entity}.position`).then(position => {
           this.setState({ position })
           position.on('change', this.handlePositionChange)
         })
       });
-      client.call(`decs.components.the_void.${entity}.radar_receiver`, 'set', radar_receiver).then(_res => {
+      this.client.call(`decs.components.the_void.${entity}.radar_receiver`, 'set', radar_receiver).then(_res => {
         this.setupRadarDemo()
         setTimeout(() => this.setupRadarContacts(entity), 500)
       })
@@ -213,9 +137,10 @@ class Stacktrader extends Component {
   }
 
   setupRadarContacts(entity) {
-    client.get(`decs.components.the_void.${entity}.radar_contacts`).then(contacts => {
+    this.client.get(`decs.components.the_void.${entity}.radar_contacts`).then(contacts => {
       contacts.on('add', this.onUpdate)
       contacts.on('remove', this.onUpdate)
+      console.log(Array.from(contacts))
       this.setState({ contacts })
     }).catch(err => {
       console.log(err)
@@ -224,32 +149,56 @@ class Stacktrader extends Component {
   }
 
   setupRadarDemo() {
-    this.setupEntity("asteroid", -1, -1, 4);
-    this.setupEntity("meteor", 1, 1, 4);
-    this.setupEntity("gold_ore", 3, 3, 4);
-    this.setupEntity("friendly_spaceship", 5, 5, 5);
-    this.setupEntity("enemy_spaceship", 9, 9, 6);
-    this.setupEntity("starbase", 10, 10, 7);
-    this.setupEntity("center_of_the_univese", 15, 15, 10);
+    /**
+     * Color guide:
+     * CoreUI Red: f86c6b
+     * CoreUI Yellow: ffc107
+     * CoreUI Blue: 20a8d8
+     * CoreUI Green: 4dbd74
+     */
+    this.setupEntity("sapphire_asteroid", -1, -1, 0, "20a8d8");
+    this.setupEntity("ruby_asteroid", 2, 4, 0, "f86c6b");
+    this.setupEntity("gold_asteroid", -2, 4, 0, "ffc107");
+    this.setupEntity("friendly_spaceship", 10, 9, 0, "4dbd74");
+    this.setupEntity("enemy_spaceship", 14, 7, 0, "f86c6b");
+    this.setupEntity("starbase", 10, 10, 0, "ffc107");
+    this.setupEntity("unknown_spaceship", 20, 20, 0, "ffc107");
   }
 
-  setupEntity(name, x, y, z) {
+  setupEntity(name, x, y, z, color) {
     let position = { x, y, z };
     let velocity = { "mag": 0, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
-    client.call(`decs.components.the_void.${name}.velocity`, 'set', velocity);
-    client.call(`decs.components.the_void.${name}.position`, 'set', position);
+    let transponder = null;
+    if (name.includes("asteroid")) {
+      transponder = {
+        object_type: "asteroid",
+        display_name: name,
+        hex_color: color
+      }
+    } else if (name.includes("ship")) {
+      transponder = {
+        object_type: "ship",
+        display_name: name,
+        hex_color: color
+      }
+    } else if (name.includes("starbase")) {
+      transponder = {
+        object_type: "starbase",
+        display_name: name,
+        hex_color: color
+      }
+    } else {
+      return
+    }
+    this.client.call(`decs.components.the_void.${name}.transponder`, 'set', transponder);
+    this.client.call(`decs.components.the_void.${name}.velocity`, 'set', velocity);
+    this.client.call(`decs.components.the_void.${name}.position`, 'set', position);
   }
   // Demo functions ends
 
   toggle() {
     this.setState({
       dropdownOpen: !this.state.dropdownOpen,
-    });
-  }
-
-  onRadioBtnClick(radioSelected) {
-    this.setState({
-      radioSelected: radioSelected,
     });
   }
 
@@ -263,7 +212,7 @@ class Stacktrader extends Component {
           <Col>
             <Card className="card-accent-success">
               <CardHeader>
-                {this.state.entity}
+                {this.state.entity_id}
               </CardHeader>
               <CardBody>
                 <Row>
@@ -284,24 +233,30 @@ class Stacktrader extends Component {
               </CardBody>
             </Card>
           </Col>
-          {this.state.target && <Col>
+          <Col>
             <Card className="card-accent-success">
               <CardHeader>
                 Target
               </CardHeader>
-              <CardBody>
+              {this.state.target ? <CardBody>
                 Targeting: {this.state.target.rid.split(".")[3]} <br />
                 Distance:  {this.state.target.distance_km >= 1.1 ? this.state.target.distance_km.toPrecision(2) + "km" : "Target within range"} <br />
                 ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h/
                     ${Math.floor(this.state.target.eta_ms / 1000 / 60)}m/
                     ${(this.state.target.eta_ms / 1000).toPrecision(3)}s`} <br />
               </CardBody>
+                :
+                <CardBody>
+                  Targeting: No current target <br />
+                  Distance: N/A <br />
+                  ETA: N/A <br />
+                </CardBody>}
             </Card>
-          </Col>}
+          </Col>
           <Col>
             <Card className="card-accent-success">
               <CardHeader>
-                {this.state.entity}'s Inventory
+                {this.state.entity_id}'s Inventory
               </CardHeader>
               <CardBody>
                 Empty
@@ -311,7 +266,17 @@ class Stacktrader extends Component {
         </Row>
 
         <Row>
-          <Col>
+          <Col md="6">
+            <Card>
+              <CardHeader>
+                Radar
+              </CardHeader>
+              <CardBody>
+                {this.state.entity_id && <Radar client={this.client} shard="the_void" entity={this.state.entity_id} />}
+              </CardBody>
+            </Card>
+          </Col>
+          <Col md="6">
             <Card>
               <CardHeader>
                 Radar Contacts
@@ -324,8 +289,8 @@ class Stacktrader extends Component {
                       {/* <th className="text-center"><i className="icon-dashboard"></i></th> */}
                       <th>Contact</th>
                       <th>Distance</th>
-                      <th>Azimuth</th>
-                      <th>Elevation</th>
+                      <th>Angle</th>
+                      {/* <th>Elevation</th> */}
                       {/* <th>Navigation</th> */}
                     </tr>
                   </thead>
@@ -344,7 +309,7 @@ class Stacktrader extends Component {
                         <td>
                           <div className="clearfix">
                             <div className="float-left">
-                              <strong>{contact.distance}km</strong>
+                              <strong>{contact.distance_xy}km</strong>
                             </div>
                           </div>
                           <Progress animated className="mb-3" color={(Number.parseFloat(contact.distance) / 6.0) > 0.75 ? "warning" : "success"} value={100 * (Number.parseFloat(contact.distance) / 6.0)} />
@@ -352,9 +317,9 @@ class Stacktrader extends Component {
                         <td>
                           {contact.azimuth ? contact.azimuth.toPrecision(3) : "NaN"}
                         </td>
-                        <td>
+                        {/* <td>
                           {contact.elevation ? contact.elevation.toPrecision(3) : "idk"}
-                        </td>
+                        </td> */}
                         {/* <td className="text-center">
                       <i className="icon-cursor"></i>
                     </td> */}
@@ -362,18 +327,6 @@ class Stacktrader extends Component {
                     )}
                   </tbody>
                 </Table>
-              </CardBody>
-            </Card>
-          </Col>
-          <Col>
-            <Card>
-              <CardHeader>
-                Radar
-              </CardHeader>
-              <CardBody>
-                <div className="chart-wrapper">
-                  <Polar data={polar} options={options} />
-                </div>
               </CardBody>
             </Card>
           </Col>

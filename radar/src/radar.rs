@@ -69,6 +69,7 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
         let all_positions = POSITIONS.read().unwrap();
         let updates = radar_updates(
             &frame.entity_id,
+            &frame.shard,
             &position,
             &radar_receiver,
             &old_contacts,
@@ -130,6 +131,7 @@ fn publish_message(
 /// Changes are in the form of RadarContactDeltas, either specifying to Add, Remove, or Change a contact.
 fn radar_updates(
     entity_id: &str,
+    shard: &str,
     current_position: &Position,
     radar_receiver: &RadarReceiver,
     old_contacts: &HashMap<String, RadarContact>,
@@ -149,13 +151,16 @@ fn radar_updates(
                 }
                 if within_radius(current_position, v, radar_receiver.radius) {
                     let vector_to = current_position.vector_to(v);
+                    let transponder = transponder_for_entity(shard, &k.clone());
                     Some(RadarContactDelta::Change(
                         rid,
                         RadarContact {
                             entity_id: k.clone().to_string(),
                             distance: vector_to.mag,
+                            distance_xy: vector_to.distance_xy,
                             azimuth: vector_to.azimuth,
                             elevation: vector_to.elevation,
+                            transponder,
                         },
                     ))
                 } else {
@@ -163,11 +168,14 @@ fn radar_updates(
                 }
             } else if entity_id != k && within_radius(current_position, &v, radar_receiver.radius) {
                 let vector_to = current_position.vector_to(v);
+                let transponder = transponder_for_entity(shard, &k.clone());
                 Some(RadarContactDelta::Add(RadarContact {
                     entity_id: k.clone().to_string(),
                     distance: vector_to.mag,
+                    distance_xy: vector_to.distance_xy,
                     azimuth: vector_to.azimuth,
                     elevation: vector_to.elevation,
+                    transponder,
                 }))
             } else {
                 None
@@ -202,7 +210,14 @@ pub(crate) fn handle_entity_position_change(
 
 /// Helper function to clean up determining if an entity is within a radius
 fn within_radius(entity: &Position, target: &Position, radius: f64) -> bool {
-    entity.distance_to(target) <= radius
+    entity.distance_to_3d(target) <= radius
+}
+
+/// Helper function format a `radar_transponder` ResourceIdentifier given a specific entity
+fn transponder_for_entity(shard: &str, entity_id: &String) -> ResourceIdentifier {
+    ResourceIdentifier {
+        rid: format!("decs.components.{}.{}.transponder", shard, entity_id),
+    }
 }
 
 #[cfg(test)]
@@ -214,6 +229,7 @@ mod test {
     use super::RadarContact;
     use super::RadarContactDelta;
     use super::RadarReceiver;
+    use super::ResourceIdentifier;
 
     #[test]
     fn test_within_radius() {
@@ -280,20 +296,32 @@ mod test {
         let nearby_asteroid = RadarContact {
             entity_id: "decs.components.the_shard.asteroid".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.asteroid.transponder".to_string(),
+            },
         };
         let nearby_ship = RadarContact {
             entity_id: "decs.components.the_shard.ship".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.ship.transponder".to_string(),
+            },
         };
         let mut far_away_money = RadarContact {
             entity_id: "decs.components.the_shard.money".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.money.transponder".to_string(),
+            },
         };
         let mut far_away_money_pos = current_position.clone();
         far_away_money_pos.x += 500.0;
@@ -309,6 +337,7 @@ mod test {
 
         let changes = radar_updates(
             &rid,
+            "the_shard",
             &current_position,
             &radar_receiver,
             &old_contacts,
@@ -350,20 +379,32 @@ mod test {
         let mut nearby_asteroid = RadarContact {
             entity_id: "decs.components.the_shard.asteroid".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.asteroid.transponder".to_string(),
+            },
         };
         let mut nearby_ship = RadarContact {
             entity_id: "decs.components.the_shard.ship".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.ship.transponder".to_string(),
+            },
         };
         let mut far_away_money = RadarContact {
             entity_id: "decs.components.the_shard.money".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.money.transponder".to_string(),
+            },
         };
 
         let mut old_contacts: HashMap<String, RadarContact> = HashMap::new();
@@ -402,6 +443,7 @@ mod test {
 
         let changes = radar_updates(
             &rid,
+            "the_shard",
             &current_position,
             &radar_receiver,
             &old_contacts,
@@ -440,20 +482,32 @@ mod test {
         let mut nearby_asteroid = RadarContact {
             entity_id: "decs.components.the_shard.asteroid".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.asteroid.transponder".to_string(),
+            },
         };
         let mut nearby_ship = RadarContact {
             entity_id: "decs.components.the_shard.ship".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.ship.transponder".to_string(),
+            },
         };
         let mut far_away_money = RadarContact {
             entity_id: "decs.components.the_shard.money".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.money.transponder".to_string(),
+            },
         };
 
         let mut old_contacts: HashMap<String, RadarContact> = HashMap::new();
@@ -494,6 +548,7 @@ mod test {
 
         let changes = radar_updates(
             &rid,
+            "the_shard",
             &current_position,
             &radar_receiver,
             &old_contacts,
@@ -528,20 +583,32 @@ mod test {
         let mut nearby_asteroid = RadarContact {
             entity_id: "decs.components.the_shard.asteroid".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.asteroid.transponder".to_string(),
+            },
         };
         let mut nearby_ship = RadarContact {
             entity_id: "decs.components.the_shard.ship".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.ship.transponder".to_string(),
+            },
         };
         let mut far_away_money = RadarContact {
             entity_id: "decs.components.the_shard.money".to_string(),
             distance: vector_to.mag,
+            distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
             elevation: vector_to.elevation,
+            transponder: ResourceIdentifier {
+                rid: "decs.components.the_shard.money.transponder".to_string(),
+            },
         };
 
         let mut old_contacts: HashMap<String, RadarContact> = HashMap::new();
@@ -583,6 +650,7 @@ mod test {
 
         let changes = radar_updates(
             &rid,
+            "the_shard",
             &current_position,
             &radar_receiver,
             &old_contacts,
