@@ -5,7 +5,7 @@ The mining system is responsible for allowing players to extract resources from 
 *Implicit* here is the notion that whatever is responsible for populating the universe with mine-able objects will need to not only create the object (entity + `position` and `radar_transponder`) but will also need to create the `mining_resource` component.
 
 The following is what takes place from the perspective of dECS Cloud:
-* An entity contains a `mining_resorce` (e.g. `decs.components.the_void.asteroid99.mining_resource`)
+* An entity has a `mining_resource` (e.g. `decs.components.the_void.asteroid99.mining_resource`)
 * A player's actions will result in the creation of an `extractor` component:
 ```json
 {    
