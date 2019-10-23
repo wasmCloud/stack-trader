@@ -323,8 +323,11 @@ mod test {
                 rid: "decs.components.the_shard.money.transponder".to_string(),
             },
         };
-        let mut far_away_money_pos = current_position;
-        far_away_money_pos.x += 500.0;
+        let far_away_money_pos = Position {
+            x: 500.0,
+            y: 0.0,
+            z: 0.0,
+        };
         let new_vector_to = current_position.vector_to(&far_away_money_pos);
         far_away_money.distance = new_vector_to.mag;
         far_away_money.azimuth = new_vector_to.azimuth;
@@ -416,9 +419,11 @@ mod test {
         old_contacts.insert(remove_rid_1.clone(), nearby_asteroid.clone());
         old_contacts.insert(remove_rid_2.clone(), nearby_ship.clone());
 
-        let mut current_position_clone = current_position;
-
-        current_position_clone.x += 500.0;
+        let current_position_clone = Position {
+            x: 500.0,
+            y: 0.0,
+            z: 0.0,
+        };
         let new_vector_to = current_position.vector_to(&current_position_clone);
         let far_away_money = RadarContact {
             distance: new_vector_to.mag,
