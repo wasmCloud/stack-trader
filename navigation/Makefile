@@ -46,4 +46,4 @@ release:
 	wascap sign ../target/wasm32-unknown-unknown/release/navigation.wasm ../target/wasm32-unknown-unknown/release/navigation_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
 
 docker: release
-	docker build -f ../Dockerfile.navigation -t stacktrader/navigation ../
+	docker build -f ./Dockerfile -t stacktrader/navigation ./

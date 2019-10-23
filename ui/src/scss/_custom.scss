@@ -1,0 +1,227 @@
+#radar-container {
+  height: 300px;
+}
+#radar {
+  position: absolute;
+  top: 50px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 300px;
+  height: 300px;
+  margin: auto;
+  background: #222222;
+  overflow: hidden;
+  border: 2px solid #8ba892;
+  -webkit-border-radius: 300px;
+  border-radius: 300px;
+  -webkit-background-clip: padding-box;
+  background-clip: padding-box;
+}
+#radar:before,
+#radar:after {
+  content: "";
+  background: rgba(139, 168, 146, 0.15);
+  position: absolute;
+  margin: auto;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 0;
+}
+#radar:before {
+  width: 1px;
+}
+#radar:after {
+  height: 1px;
+}
+#radar i {
+  display: block;
+  margin: 50px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  border: 1px solid rgba(139, 168, 146, 0.15);
+  -webkit-border-radius: 300px;
+  border-radius: 300px;
+  -webkit-background-clip: padding-box;
+  background-clip: padding-box;
+}
+.fa-rocket:before,
+.fa-space-shuttle:before,
+.fa-fort-awesome:before,
+.fa-bullseye:before,
+.player-rocket:before {
+  margin: auto;
+}
+
+.fa-rocket:before {
+  transform: rotate(-135deg);
+}
+
+.fa-space-shuttle:before {
+  transform: rotate(180deg);
+}
+
+div#guides > .fa-fort-awesome:before {
+  left: -20px;
+  bottom: 10px;
+}
+
+div#guides > .fa-space-shuttle:before {
+  left: 10px;
+  top: 5px;
+}
+
+div#guides > .fa-bullseye:before {
+  left: -20px;
+}
+
+.radar-icon:before {
+  position: absolute;
+  height: 0;
+  width: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+}
+
+.icon-div {
+  display: flex;
+  justify-content: center;
+}
+
+.icon-arrow-dot-circle {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border: 1px solid black;
+  border-radius: 24px;
+}
+
+i.player-rocket:before {
+  color: lightgreen;
+  transform: rotate(-45deg);
+  right: 34px;
+}
+
+#radar.animated .dot {
+  background: #c5d4c9;
+  position: absolute;
+  opacity: 1;
+  -webkit-background-clip: padding-box;
+  background-clip: padding-box;
+  -webkit-animation: dot_pulse linear 4s infinite;
+  animation: dot_pulse linear 4s infinite;
+}
+#radar.animated .line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 50%;
+  right: 50%;
+  z-index: 9999;
+  opacity: 0.7;
+  -webkit-transform-origin: 100% 100%;
+  transform-origin: 100% 100%;
+  -webkit-border-radius: 300px 0 0 0;
+  border-radius: 300px 0 0 0;
+  -webkit-background-clip: padding-box;
+  background-clip: padding-box;
+  -webkit-animation: radar 3s infinite linear;
+  animation: radar 3s infinite linear;
+  background-image: -webkit-linear-gradient(
+    45deg,
+    rgba(139, 168, 146, 0.01) 0%,
+    rgba(139, 168, 146, 0.01) 50%,
+    #8ba892 100%
+  );
+  background-image: linear-gradient(45deg, rgba(139, 168, 146, 0.01) 0%, rgba(139, 168, 146, 0.01) 50%, #8ba892 100%);
+}
+#guides {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 0;
+}
+@-webkit-keyframes radar {
+  from {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@keyframes radar {
+  from {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@-moz-keyframes dot_pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@-webkit-keyframes dot_pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.circle {
+  width: 0px;
+  height: 0px;
+  background-color: transparent;
+  position: relative;
+  left: 50%;
+  margin-left: 0px;
+  top: 50%;
+  margin-top: 0px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  animation: radar 4s infinite;
+  -webkit-animation: radar 4s infinite;
+  -webkit-transition: all ease-in-out;
+  transition: all ease-in;
+}
+
+@keyframes radar {
+  1% {
+    width: 6px;
+    height: 6px;
+    margin-left: -3px;
+    margin-top: -3px;
+    border-color: #bbb;
+  }
+  100% {
+    width: 300px;
+    height: 300px;
+    margin-left: -150px;
+    margin-top: -150px;
+    border-color: #333;
+  }
+}
