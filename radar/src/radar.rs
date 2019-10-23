@@ -87,7 +87,7 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
                     ))
                     .to_string()
                     .clone(),
-                    serde_json::json!({"params": rc}),
+                    serde_json::json!({ "params": rc }),
                 ),
                 RadarContactDelta::Remove(rid) => (
                     ResProtocolRequest::Delete(format!(
@@ -100,7 +100,7 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
                 ),
                 RadarContactDelta::Change(rid, rc) => (
                     format!("call.{}.set", rid.clone()),
-                    serde_json::json!({"params": rc}),
+                    serde_json::json!({ "params": rc }),
                 ),
             })
             .map(|(subject, payload)| publish_message(ctx, &subject, payload))
@@ -386,7 +386,7 @@ mod test {
                 rid: "decs.components.the_shard.asteroid.transponder".to_string(),
             },
         };
-        let nearby_entity ="decs.components.the_shard.ship";
+        let nearby_entity = "decs.components.the_shard.ship";
         let nearby_ship = RadarContact {
             entity_id: nearby_entity.to_string(),
             distance: vector_to.mag,
@@ -423,22 +423,13 @@ mod test {
             distance: new_vector_to.mag,
             azimuth: new_vector_to.azimuth,
             elevation: new_vector_to.elevation,
-            ..far_away_money};
+            ..far_away_money
+        };
 
-        
         all_positions.insert(rid.to_string(), current_position);
-        all_positions.insert(
-            nearby_entity.to_string(),
-            current_position_clone,
-        );
-        all_positions.insert(
-            nearby_entity.to_string(),
-            current_position_clone,
-        );
-        all_positions.insert(
-            far_away_money.entity_id.clone(),
-            current_position_clone,
-        );
+        all_positions.insert(nearby_entity.to_string(), current_position_clone);
+        all_positions.insert(nearby_entity.to_string(), current_position_clone);
+        all_positions.insert(far_away_money.entity_id.clone(), current_position_clone);
 
         let changes = radar_updates(
             &rid,
@@ -460,7 +451,7 @@ mod test {
             match c {
                 RadarContactDelta::Add(_) => unreachable!(false),
                 RadarContactDelta::Change(_, _) => unreachable!(false),
-                RadarContactDelta::Remove(_) => {},
+                RadarContactDelta::Remove(_) => {}
             }
         }
     }
@@ -523,20 +514,11 @@ mod test {
         let mut current_position_clone = current_position;
         current_position_clone.x += 2.0;
         let new_vector_to = current_position.vector_to(&current_position_clone);
-        
+
         all_positions.insert(rid.to_string(), current_position);
-        all_positions.insert(
-            nearby_entity_id.to_string(),
-            current_position_clone,
-        );
-        all_positions.insert(
-            nearby_entity_id.to_string(),
-            current_position_clone,
-        );
-        all_positions.insert(
-            faraway_entity_id.to_string(),
-            current_position_clone,
-        );
+        all_positions.insert(nearby_entity_id.to_string(), current_position_clone);
+        all_positions.insert(nearby_entity_id.to_string(), current_position_clone);
+        all_positions.insert(faraway_entity_id.to_string(), current_position_clone);
 
         let changes = radar_updates(
             &rid,
@@ -616,20 +598,14 @@ mod test {
         let mut current_position_clone = current_position;
         current_position_clone.x += 2.0;
         let mut new_vector_to = current_position.vector_to(&current_position_clone);
-        
-        all_positions.insert(
-            nearby_entity_id.to_string(),
-            current_position_clone,
-        );
+
+        all_positions.insert(nearby_entity_id.to_string(), current_position_clone);
 
         // Remove money, move it very far away
         current_position_clone.x += 500.0;
         new_vector_to = current_position.vector_to(&current_position_clone);
-        
-        all_positions.insert(
-            faraway_entity_id.to_string(),
-            current_position_clone,
-        );
+
+        all_positions.insert(faraway_entity_id.to_string(), current_position_clone);
 
         // Add a new nearby ship, which wasn't an old contact.
         new_vector_to = current_position.vector_to(&current_position);
