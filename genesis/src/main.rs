@@ -65,9 +65,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let client = Client::from_options(opts)?;
     client.connect()?;
 
+    println!(
+        r#"
+        "According to myth, the earth was created in six days. 
+        Now watch out! Here comes Genesis. 
+        We'll do it for you in six minutes!" - Leonard McCoy, Star Trek II
+        
+        "#
+    );
+
+
     for x in 0..params.asteroids {
         create_asteroid(&client, &params, x)?;
-    }    
+    }
     println!(
         "Created {} asteroids in shard {}",
         params.asteroids, params.shard_name
@@ -151,7 +161,8 @@ fn create_component(
 ) -> Result<(), Box<dyn Error>> {
     let subject = format!("call.{}.set", rid);
 
-    nats.publish(&subject, &serde_json::to_vec(&raw)?, None)?;    
+    nats.publish(&subject, &serde_json::to_vec(&raw)?, None)?;
+    //println!("{} - {}", subject, raw);
 
     Ok(())
 }
