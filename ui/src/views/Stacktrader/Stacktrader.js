@@ -57,6 +57,7 @@ class Stacktrader extends Component {
       velocity: new Velocity(0, 0.0, 0.0, 0.0),
       contacts: [],
       target: null,
+      target_name: "",
       radar_receiver: null
     };
   }
@@ -98,6 +99,7 @@ class Stacktrader extends Component {
     this.client.call(`decs.components.the_void.Player1.target`, 'set', p1target).then(_res => {
       this.client.get(`decs.components.the_void.Player1.target`).then(target => {
         this.setState({ target })
+        this.getNameForRid(target.rid)
         target.on('change', this.onUpdate)
       })
     })
@@ -137,6 +139,7 @@ class Stacktrader extends Component {
       })
       this.client.get(`decs.components.the_void.${entity}.target`).then(target => {
         this.setState({ target })
+        this.getNameForRid(target.rid)
         target.on('change', this.onUpdate)
       })
     }).catch(err => {
@@ -213,6 +216,12 @@ class Stacktrader extends Component {
 
   loading = () => <div className="animated fadeIn pt-1 text-center">Loading...</div>
 
+  getNameForRid = (rid) => {
+    this.client.get(`${rid}.transponder`).then(transponder => {
+      this.setState({ target_name: transponder.display_name })
+    })
+  }
+
   render() {
 
     return (
@@ -248,8 +257,7 @@ class Stacktrader extends Component {
                 Target
               </CardHeader>
               {this.state.target ? <CardBody>
-                {/* TODO: Get friendly target UI name */}
-                Targeting: {this.state.target.rid.split(".")[3]} <br />
+                Targeting: {this.state.target_name} <br />
                 Distance:  {this.state.target.eta_ms > 0.0 ? this.state.target.distance_km.toPrecision(2) + "km" : "Target within range"} <br />
                 ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h/
                     ${Math.floor(this.state.target.eta_ms / 1000 / 60)}m/
