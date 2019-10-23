@@ -116,12 +116,12 @@ pub struct RadarContact {
 /// Represents a transponder component for a radar contact that dictates how it should be displayed in the game UI
 /// object_type should be ["starbase" | "ship" | "asteroid"]
 /// display_name should be the name to display on the UI.
-/// hex_color is 6 digit hex color code of corresponding object
+/// color can either be in the form of a hex code `#ff0000` or a CSS recognized color `red` or `aliceblue`
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
 pub struct RadarTransponder {
     pub object_type: String,
     pub display_name: String,
-    pub hex_color: String,
+    pub color: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]

@@ -43,7 +43,7 @@ class Radar extends Component {
             let style = {
                 left: x,
                 top: y,
-                color: `#${contact.transponder.hex_color}`,
+                color: contact.transponder.color,
                 '-webkit-animation-delay': delay + 's',
                 'animation-delay': delay + 's'
             }

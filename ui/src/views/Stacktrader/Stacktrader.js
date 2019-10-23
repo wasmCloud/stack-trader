@@ -56,7 +56,8 @@ class Stacktrader extends Component {
       position: new Position(0.0, 0.0, 0.0),
       velocity: new Velocity(0, 0.0, 0.0, 0.0),
       contacts: [],
-      target: null
+      target: null,
+      radar_receiver: null
     };
   }
 
@@ -111,14 +112,14 @@ class Stacktrader extends Component {
     this.client.get('decs.shards').then(_shards => {
       let position = this.state.position;
       let velocity = this.state.velocity;
-      let radar_receiver = { "radius": 6.0 };
+      let radar_receiver = { "radius": 10.0 };
       let entity = this.state.entity_id
 
       this.client.call(`decs.components.the_void.${entity}.velocity`, 'set', velocity).then(_res => {
         this.client.get(`decs.components.the_void.${entity}.velocity`).then(velocity => {
           this.setState({ velocity })
           velocity.on('change', this.handleVelocityChange)
-          this.client.call(`decs.components.the_void.${entity}.velocity`, 'set', { "mag": 1800, "ux": 1.0, "uy": 1.0, "uz": 0.0 })
+          this.client.call(`decs.components.the_void.${entity}.velocity`, 'set', { "mag": 900, "ux": 1.0, "uy": 1.0, "uz": 0.0 })
         })
       });
       this.client.call(`decs.components.the_void.${entity}.position`, 'set', position).then(_res => {
@@ -128,8 +129,15 @@ class Stacktrader extends Component {
         })
       });
       this.client.call(`decs.components.the_void.${entity}.radar_receiver`, 'set', radar_receiver).then(_res => {
+        this.client.get(`decs.components.the_void.${entity}.radar_receiver`).then(radar_receiver => {
+          this.setState({ radar_receiver })
+        })
         this.setupRadarDemo()
         setTimeout(() => this.setupRadarContacts(entity), 500)
+      })
+      this.client.get(`decs.components.the_void.${entity}.target`).then(target => {
+        this.setState({ target })
+        target.on('change', this.onUpdate)
       })
     }).catch(err => {
       console.log(err);
@@ -151,19 +159,19 @@ class Stacktrader extends Component {
   setupRadarDemo() {
     /**
      * Color guide:
-     * CoreUI Red: f86c6b
-     * CoreUI Yellow: ffc107
-     * CoreUI Blue: 20a8d8
-     * CoreUI Green: 4dbd74
+     * CoreUI Danger: f86c6b
+     * CoreUI Warning: ffc107
+     * CoreUI Primary: 20a8d8
+     * CoreUI Success: 4dbd74
      */
-    this.setupEntity("sapphire_asteroid", "Sapphire Asteroid", -2, -2, -1, "20a8d8");
-    this.setupEntity("sapphire_asteroid", "Emerald Asteroid", -2, 2, -1, "20a8d8");
-    this.setupEntity("ruby_asteroid", "Ruby Asteroid", 2, -2, 1, "f86c6b");
-    this.setupEntity("gold_asteroid", "Gold Asteroid", 2, 2, 2, "ffc107");
-    this.setupEntity("friendly_spaceship", "Friendly Spaceship", 10, 9, 0, "4dbd74");
-    this.setupEntity("enemy_spaceship", "Enemy Spaceship", 14, 7, 0, "f86c6b");
-    this.setupEntity("starbase_alpha", "Starbase Alpha", 10, 10, 0, "ffc107");
-    this.setupEntity("unknown_spaceship", "Unknown Spaceship", 20, 20, 0, "ffc107");
+    this.setupEntity("sapphire_asteroid", "Sapphire Asteroid", -2, -2, -1, "#20a8d8");
+    this.setupEntity("emerald_asteroid", "Emerald Asteroid", -2, 2, -1, "#4dbd74");
+    this.setupEntity("ruby_asteroid", "Ruby Asteroid", 2, -2, 1, "#f86c6b");
+    this.setupEntity("gold_asteroid", "Gold Asteroid", 2, 2, 2, "#ffc107");
+    this.setupEntity("friendly_spaceship", "Friendly Spaceship", 10, 9, 0, "#4dbd74");
+    this.setupEntity("enemy_spaceship", "Enemy Spaceship", 14, 7, 0, "#f86c6b");
+    this.setupEntity("starbase_alpha", "Starbase Alpha", 10, 10, 0, "#ffc107");
+    this.setupEntity("unknown_spaceship", "Unknown Spaceship", 20, 20, 0, "#ffc107");
   }
 
   setupEntity(entity_id, name, x, y, z, color) {
@@ -174,19 +182,19 @@ class Stacktrader extends Component {
       transponder = {
         object_type: "asteroid",
         display_name: name,
-        hex_color: color
+        color
       }
     } else if (entity_id.includes("ship")) {
       transponder = {
         object_type: "ship",
         display_name: name,
-        hex_color: color
+        color
       }
     } else if (entity_id.includes("starbase")) {
       transponder = {
         object_type: "starbase",
         display_name: name,
-        hex_color: color
+        color
       }
     } else {
       return
@@ -211,7 +219,7 @@ class Stacktrader extends Component {
       <div className="animated fadeIn">
         <Row>
           <Col>
-            <Card className="card-accent-success">
+            <Card className="card-accent-primary">
               <CardHeader>
                 {this.state.entity_id}
               </CardHeader>
@@ -235,16 +243,24 @@ class Stacktrader extends Component {
             </Card>
           </Col>
           <Col>
-            <Card className="card-accent-success">
+            <Card className="card-accent-primary">
               <CardHeader>
                 Target
               </CardHeader>
               {this.state.target ? <CardBody>
+                {/* TODO: Get friendly target UI name */}
                 Targeting: {this.state.target.rid.split(".")[3]} <br />
-                Distance:  {this.state.target.distance_km >= 1.1 ? this.state.target.distance_km.toPrecision(2) + "km" : "Target within range"} <br />
+                Distance:  {this.state.target.eta_ms > 0.0 ? this.state.target.distance_km.toPrecision(2) + "km" : "Target within range"} <br />
                 ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h/
                     ${Math.floor(this.state.target.eta_ms / 1000 / 60)}m/
                     ${(this.state.target.eta_ms / 1000).toPrecision(3)}s`} <br />
+                <br />
+
+                <Progress animated className="mb-3"
+                  color={this.state.target.eta_ms <= 0.0 ? "success" : "primary"}
+                  value={this.state.target.eta_ms <= 0.0 ? 100 :
+                    this.state.target.distance_km >= this.state.radar_receiver.radius ? 0 :
+                      100 * (this.state.radar_receiver.radius - Number.parseFloat(this.state.target.distance_km)) / this.state.radar_receiver.radius} />
               </CardBody>
                 :
                 <CardBody>
@@ -255,9 +271,9 @@ class Stacktrader extends Component {
             </Card>
           </Col>
           <Col>
-            <Card className="card-accent-success">
+            <Card className="card-accent-primary">
               <CardHeader>
-                {this.state.entity_id}'s Inventory
+                Inventory
               </CardHeader>
               <CardBody>
                 Empty
@@ -268,7 +284,7 @@ class Stacktrader extends Component {
 
         <Row>
           <Col md="6">
-            <Card>
+            <Card className="card-accent-info">
               <CardHeader>
                 Radar
               </CardHeader>
@@ -278,7 +294,7 @@ class Stacktrader extends Component {
             </Card>
           </Col>
           <Col md="6">
-            <Card>
+            <Card className="card-accent-info">
               <CardHeader>
                 Radar Contacts
             </CardHeader>
@@ -287,7 +303,7 @@ class Stacktrader extends Component {
                 <Table hover responsive className="table-outline mb-0 d-sm-table">
                   <thead className="thead-light">
                     <tr>
-                      <th className="text-center">Icon</th>
+                      <th className="text-center">Type</th>
                       <th>Contact</th>
                       <th>Distance</th>
                       <th className="text-center">Angle</th>
@@ -301,11 +317,11 @@ class Stacktrader extends Component {
                           <div>
                             <span style={{
                               position: "relative",
-                              color: `#${contact.transponder.hex_color}`,
+                              color: contact.transponder.color,
                               transform: `rotate(${contact.transponder.object_type === "ship" ? 180 : 0}deg)`
-                            }} className={`fa ${contact.transponder.object_type === "asteroid" ? "fa-bullseye" :
-                              contact.transponder.object_type === "ship" ? "fa-space-shuttle" :
-                                contact.transponder.object_type === "starbase" ? "fa-fort-awesome" : "fa-warning"} fa-lg`}></span>
+                            }} className={`${contact.transponder.object_type === "asteroid" ? "fa fa-bullseye" :
+                              contact.transponder.object_type === "ship" ? "fa fa-space-shuttle" :
+                                contact.transponder.object_type === "starbase" ? "fa fa-fort-awesome" : "fa fa-warning"} fa-lg`}></span>
                           </div>
                         </td>
                         <td>
@@ -317,7 +333,6 @@ class Stacktrader extends Component {
                               <strong>{contact.distance_xy}km</strong>
                             </div>
                           </div>
-                          <Progress animated className="mb-3" color={(Number.parseFloat(contact.distance) / 6.0) > 0.75 ? "warning" : "success"} value={100 * (Number.parseFloat(contact.distance) / 6.0)} />
                         </td>
                         <td className="text-center">
                           <div style={{ transform: `rotate(${contact.azimuth <= 180 ? 90 - contact.azimuth : contact.azimuth - 90}deg)` }}>
@@ -325,8 +340,8 @@ class Stacktrader extends Component {
                           </div>
                         </td>
                         <td className="text-center">
-                          <div>
-                            <i className={`${contact.elevation === 90 ? "icon-arrow-right-circle" : contact.elevation < 90 ? "icon-arrow-up-circle" : "icon-arrow-down-circle"} font-2xl`}></i>
+                          <div className="icon-div">
+                            <i className={`${contact.elevation === 90 ? "icon-arrow-dot-circle" : contact.elevation < 90 ? "icon-arrow-up-circle" : "icon-arrow-down-circle"} font-2xl`}></i>
                           </div>
                         </td>
                       </tr>

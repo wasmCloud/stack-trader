@@ -65,6 +65,20 @@
   transform: rotate(180deg);
 }
 
+div#guides > .fa-fort-awesome:before {
+  left: -20px;
+  bottom: 10px;
+}
+
+div#guides > .fa-space-shuttle:before {
+  left: 10px;
+  top: 5px;
+}
+
+div#guides > .fa-bullseye:before {
+  left: -20px;
+}
+
 .radar-icon:before {
   position: absolute;
   height: 0;
@@ -76,9 +90,18 @@
   margin: auto;
 }
 
-// .fa-fort-awesome:before {
-// bottom: 30px;
-// }
+.icon-div {
+  display: flex;
+  justify-content: center;
+}
+
+.icon-arrow-dot-circle {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border: 1px solid black;
+  border-radius: 24px;
+}
 
 i.player-rocket:before {
   color: lightgreen;
