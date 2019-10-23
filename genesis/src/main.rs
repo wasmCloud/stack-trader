@@ -96,7 +96,7 @@ fn create_starbase(nats: &Client, params: &UniverseParameters) -> Result<(), Box
 
     let transponder = json!({"object_type": "starbase",
                         "display_name": "Starbase Alpha".to_string(),
-                        "hex_color": params.starbase_color});
+                        "color": params.starbase_color});
 
     create_component(
         nats,
@@ -162,7 +162,7 @@ fn gen_transponder(params: &UniverseParameters) -> serde_json::Value {
 
     json!({"object_type": "asteroid",
         "display_name": format!("{} Asteroid", params.asteroid_adjs[idx]),
-        "hex_color": params.asteroid_colors[idx]})
+        "color": params.asteroid_colors[idx]})
 }
 
 fn gen_position(params: &UniverseParameters) -> serde_json::Value {
