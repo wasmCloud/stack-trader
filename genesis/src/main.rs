@@ -74,7 +74,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "#
     );
 
-
     for x in 0..params.asteroids {
         create_asteroid(&client, &params, x)?;
     }
