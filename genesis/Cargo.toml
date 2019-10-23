@@ -1,5 +1,5 @@
 [package]
-name = "stacktrader-types"
+name = "genesis"
 version = "0.1.0"
 authors = ["Kevin Hoffman <alothien@gmail.com>"]
 edition = "2018"
@@ -7,6 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+natsclient = "0.0.5"
 serde_json = "1.0.41"
 serde_derive = "1.0.101"
 serde = "1.0.101"
+rand = "0.7.2"
+structopt = "0.3.3"
