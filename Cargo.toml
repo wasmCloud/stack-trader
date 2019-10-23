@@ -5,7 +5,8 @@ members = [
     "physics",
     "stacktrader-types",
     "radar",
-    "mining"
+    "mining",
+    "genesis"
 ]
 
 [profile.release]
