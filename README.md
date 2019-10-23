@@ -1,3 +1,8 @@
+![travis](https://travis-ci.org/waxosuit/stack-trader.svg?branch=master)&nbsp;
+![license](https://img.shields.io/github/license/waxosuit/stack-trader.svg)
+
+
+
 # Stack Trader
 
 Stack Trader is a technology demonstration of [Waxosuit](https://waxosuit.io). It utilizes a distributed **Entity-Component-System** engine called [dECS Cloud](https://github.com/waxosuit/decs-cloud), which is also written in WebAssembly for hosting in Waxosuit.
