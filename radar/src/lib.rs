@@ -22,10 +22,10 @@ Radar system's responsibility is to take the metadata about the detected objects
 
 #[macro_use]
 extern crate lazy_static;
-extern crate decscloud_codec as codec;
+extern crate decscloud_common as decs;
 extern crate waxosuit_guest as guest;
 
-use codec::systemmgr::*;
+use decs::systemmgr::*;
 use guest::prelude::*;
 
 call_handler!(handle_call);

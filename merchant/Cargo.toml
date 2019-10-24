@@ -1,13 +1,16 @@
 [package]
-name = "stacktrader-types"
+name = "merchant"
 version = "0.1.0"
 authors = ["Kevin Hoffman <alothien@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib"]
 
 [dependencies]
-decscloud-common = "0.0.1"
+waxosuit-guest = "0.3.5"
+stacktrader-types = { path = "../stacktrader-types" }
 serde_json = "1.0.41"
 serde_derive = "1.0.101"
 serde = "1.0.101"
+decscloud-common = "0.0.1"

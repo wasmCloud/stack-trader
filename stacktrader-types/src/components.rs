@@ -1,4 +1,4 @@
-extern crate decscloud_codec as codec;
+extern crate decscloud_common as decs;
 
 const MS_PER_HOUR: f64 = 3_600_000.0;
 
@@ -110,7 +110,7 @@ pub struct RadarContact {
     pub distance_xy: u32,
     pub azimuth: f64,
     pub elevation: f64,
-    pub transponder: codec::gateway::ResourceIdentifier,
+    pub transponder: decs::gateway::ResourceIdentifier,
 }
 
 /// Represents a transponder component for a radar contact that dictates how it should be displayed in the game UI
@@ -124,6 +124,8 @@ pub struct RadarTransponder {
     pub color: String,
 }
 
+// At this point in the game development, mining resources are the only things that can be
+// in a player inventory, so they are moved directly from the resource to inventory.
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
 pub struct MiningResource {
     pub stack_type: String, // Type of the stack ("spendy", "tasty", or "critical")
@@ -134,6 +136,11 @@ pub struct MiningResource {
 pub struct MiningExtractor {
     pub target: String, // Fully-qualified ID of the mining resource component to which extractor is attached
     pub remaining_ms: f64, // Time remaining for extraction
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+pub struct CreditWallet {
+    pub credits: i32,
 }
 
 #[cfg(test)]

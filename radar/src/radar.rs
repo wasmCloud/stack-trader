@@ -1,7 +1,6 @@
-extern crate decscloud_codec as codec;
 extern crate waxosuit_guest as guest;
 
-use codec::gateway::*;
+use decs::gateway::*;
 use guest::prelude::*;
 use serde::{Deserialize, Serialize};
 use stacktrader_types as trader;
@@ -16,7 +15,7 @@ lazy_static! {
 const RADAR_CONTACTS: &str = "radar_contacts";
 
 pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMessage) -> CallResult {
-    let frame: codec::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
+    let frame: decs::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
 
     let radar_receiver_value = ctx.kv().get(&format!(
         "decs:components:{}:{}:{}",

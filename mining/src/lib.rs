@@ -14,7 +14,7 @@
 
 #[macro_use]
 extern crate serde_json;
-extern crate decscloud_codec as decs;
+extern crate decscloud_common as decs;
 extern crate waxosuit_guest as guest;
 
 use decs::systemmgr::*;

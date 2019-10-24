@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[macro_use]
-extern crate serde_json;
 extern crate decscloud_common as decs;
 extern crate waxosuit_guest as guest;
 
@@ -23,10 +21,9 @@ use guest::prelude::*;
 call_handler!(handle_call);
 
 const NO_MESSAGE: &str = "(no message)";
-const POSITION: &str = "position";
-const VELOCITY: &str = "velocity";
-const TARGET: &str = "target";
-const SYSTEM_NAME: &str = "navigation";
+const SELL_LIST: &str = "sell_list";
+const SYSTEM_NAME: &str = "merchant";
+const WALLET: &str = "wallet";
 const REGISTRY_SUBJECT: &str = "decs.system.registry";
 const FRAMERATE: u32 = 1;
 
@@ -54,7 +51,7 @@ fn handle_message(
     match subject.as_ref() {
         NO_MESSAGE => Err("No message".into()),
         REGISTRY_SUBJECT => handle_ping(ctx, msg.unwrap()),
-        _ => nav::handle_frame(ctx, msg.unwrap()),
+        _ => merchant::handle_frame(ctx, msg.unwrap()),
     }
 }
 
@@ -63,11 +60,7 @@ fn handle_ping(ctx: &CapabilitiesContext, msg: messaging::BrokerMessage) -> Call
     let payload = System {
         name: SYSTEM_NAME.to_string(),
         framerate: FRAMERATE,
-        components: vec![
-            POSITION.to_string(),
-            VELOCITY.to_string(),
-            TARGET.to_string(),
-        ],
+        components: vec![SELL_LIST.to_string()],
     };
     let reply_to = if msg.reply_to.is_empty() {
         format!("{}.replies", REGISTRY_SUBJECT)
@@ -83,4 +76,4 @@ fn handle_ping(ctx: &CapabilitiesContext, msg: messaging::BrokerMessage) -> Call
     Ok(vec![])
 }
 
-mod nav;
+mod merchant;
