@@ -172,3 +172,21 @@ services:
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=decs.frames.*.navigation, decs.system.registry"
+  mining:
+    build: ../../mining/
+    # image: stacktrader/mining
+    expose:
+      - "9008"
+    ports:
+      - "9008:9008"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "RUST_LOG=info,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=decs.frames.*.mining, decs.system.registry"

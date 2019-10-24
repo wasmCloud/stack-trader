@@ -29,6 +29,46 @@ class Radar extends Component {
         })
     }
 
+    computeVelocity = (event) => {
+        let x = event.offsetX - 150
+        let y = 150 - event.offsetY
+
+        if (event.target instanceof HTMLDivElement) {
+            //TODO: Velocity does not scale correctly for radar circle
+            let rads = Math.atan(y / x)
+            let distance = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2)) / 150
+            let ux = Math.cos(rads) * distance
+            let uy = Math.sin(rads) * distance
+
+            if (x <= 0) {
+                ux *= -1
+                uy *= -1
+            }
+
+            console.log(x)
+            console.log(y)
+            console.log(ux)
+            console.log(uy)
+
+            let velocity = {
+                mag: 900,
+                ux,
+                uy,
+                uz: 0.0
+            }
+
+            this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.velocity`, 'set', velocity)
+
+            this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.target`, 'delete').then(r => {
+                this.props.navigateToTarget('delete')
+            })
+        }
+    }
+
+    navigateToContact = (_event, contact) => {
+        this.props.navigateToTarget(`decs.components.${this.props.shard}.${contact.entity_id}`)
+    }
+
     render() {
         let radar_receiver_radius = this.state.radarReceiver ? this.state.radarReceiver.radius : 1;
         let time = 5
@@ -50,14 +90,14 @@ class Radar extends Component {
             let icon = contact.transponder.object_type === "asteroid" ? "fa-bullseye" :
                 contact.transponder.object_type === "ship" ? "fa-space-shuttle" :
                     contact.transponder.object_type === "starbase" ? "fa-fort-awesome" : "fa-warning"
-            return <span style={style} className={`dot radar-icon fa ${icon} fa-lg`}></span>
+            return <span style={style} className={`dot radar-icon fa ${icon} fa-lg`} onClick={(e) => this.navigateToContact(e, contact)}></span>
         })
         return (
             <div id="radar-container">
                 <div id="radar" className="animated">
-                    <i className="player-rocket radar-icon icon-rocket icons font-2xl"><i></i></i>
-                    <div id="guides">
-                        <div className="circle"></div>
+                    <i style={{ pointerEvents: 'none' }} className="player-rocket radar-icon icon-rocket icons font-2xl"><i></i></i>
+                    <div id="guides" onClick={(e) => this.computeVelocity(e.nativeEvent)}>
+                        <div className="circle" style={{ pointerEvents: 'none' }}></div>
                         {dots}
                     </div>
                 </div>
