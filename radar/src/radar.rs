@@ -323,8 +323,11 @@ mod test {
                 rid: "decs.components.the_shard.money.transponder".to_string(),
             },
         };
-        let mut far_away_money_pos = current_position;
-        far_away_money_pos.x += 500.0;
+        let far_away_money_pos = Position {
+            x: 500.0,
+            y: 0.0,
+            z: 0.0,
+        };
         let new_vector_to = current_position.vector_to(&far_away_money_pos);
         far_away_money.distance = new_vector_to.mag;
         far_away_money.azimuth = new_vector_to.azimuth;
@@ -376,8 +379,9 @@ mod test {
 
         let vector_to = current_position.vector_to(&current_position);
 
+        let asteroid_entity = "decs.components.the_shard.asteroid";
         let nearby_asteroid = RadarContact {
-            entity_id: "decs.components.the_shard.asteroid".to_string(),
+            entity_id: asteroid_entity.to_string(),
             distance: vector_to.mag,
             distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
@@ -415,9 +419,11 @@ mod test {
         old_contacts.insert(remove_rid_1.clone(), nearby_asteroid.clone());
         old_contacts.insert(remove_rid_2.clone(), nearby_ship.clone());
 
-        let mut current_position_clone = current_position;
-
-        current_position_clone.x += 500.0;
+        let current_position_clone = Position {
+            x: 500.0,
+            y: 0.0,
+            z: 0.0,
+        };
         let new_vector_to = current_position.vector_to(&current_position_clone);
         let far_away_money = RadarContact {
             distance: new_vector_to.mag,
@@ -427,7 +433,7 @@ mod test {
         };
 
         all_positions.insert(rid.to_string(), current_position);
-        all_positions.insert(nearby_entity.to_string(), current_position_clone);
+        all_positions.insert(asteroid_entity.to_string(), current_position_clone);
         all_positions.insert(nearby_entity.to_string(), current_position_clone);
         all_positions.insert(far_away_money.entity_id.clone(), current_position_clone);
 
@@ -469,8 +475,9 @@ mod test {
 
         let vector_to = current_position.vector_to(&current_position);
 
-        let mut nearby_asteroid = RadarContact {
-            entity_id: "decs.components.the_shard.asteroid".to_string(),
+        let asteroid_entity = "decs.components.the_shard.asteroid";
+        let nearby_asteroid = RadarContact {
+            entity_id: asteroid_entity.to_string(),
             distance: vector_to.mag,
             distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
@@ -480,7 +487,7 @@ mod test {
             },
         };
         let nearby_entity_id = "decs.components.the_shard.ship";
-        let mut nearby_ship = RadarContact {
+        let nearby_ship = RadarContact {
             entity_id: nearby_entity_id.to_string(),
             distance: vector_to.mag,
             distance_xy: vector_to.distance_xy,
@@ -491,7 +498,7 @@ mod test {
             },
         };
         let faraway_entity_id = "decs.components.the_shard.money";
-        let mut far_away_money = RadarContact {
+        let far_away_money = RadarContact {
             entity_id: faraway_entity_id.to_string(),
             distance: vector_to.mag,
             distance_xy: vector_to.distance_xy,
@@ -511,14 +518,16 @@ mod test {
         old_contacts.insert(change_rid_2.clone(), nearby_ship);
         old_contacts.insert(change_rid_3.clone(), far_away_money);
 
-        let mut current_position_clone = current_position;
-        current_position_clone.x += 2.0;
-        let new_vector_to = current_position.vector_to(&current_position_clone);
+        let new_position = Position {
+            x: 2.0,
+            y: 0.0,
+            z: 0.0,
+        };
 
         all_positions.insert(rid.to_string(), current_position);
-        all_positions.insert(nearby_entity_id.to_string(), current_position_clone);
-        all_positions.insert(nearby_entity_id.to_string(), current_position_clone);
-        all_positions.insert(faraway_entity_id.to_string(), current_position_clone);
+        all_positions.insert(asteroid_entity.to_string(), new_position);
+        all_positions.insert(nearby_entity_id.to_string(), new_position);
+        all_positions.insert(faraway_entity_id.to_string(), new_position);
 
         let changes = radar_updates(
             &rid,
@@ -554,8 +563,9 @@ mod test {
 
         let vector_to = current_position.vector_to(&current_position);
 
-        let mut nearby_asteroid = RadarContact {
-            entity_id: "decs.components.the_shard.asteroid".to_string(),
+        let asteroid_entity = "decs.components.the_shard.asteroid";
+        let nearby_asteroid = RadarContact {
+            entity_id: asteroid_entity.to_string(),
             distance: vector_to.mag,
             distance_xy: vector_to.distance_xy,
             azimuth: vector_to.azimuth,
@@ -576,7 +586,7 @@ mod test {
             },
         };
         let faraway_entity_id = "decs.components.the_shard.money";
-        let mut far_away_money = RadarContact {
+        let far_away_money = RadarContact {
             entity_id: faraway_entity_id.to_string(),
             distance: vector_to.mag,
             distance_xy: vector_to.distance_xy,
@@ -595,20 +605,31 @@ mod test {
         all_positions.insert(rid.to_string(), current_position);
 
         // Change asteroid to move it slightly away
-        let mut current_position_clone = current_position;
-        current_position_clone.x += 2.0;
-        let mut new_vector_to = current_position.vector_to(&current_position_clone);
+        let asteroid_position = Position {
+            x: 2.0,
+            y: 0.0,
+            z: 0.0,
+        };
 
-        all_positions.insert(nearby_entity_id.to_string(), current_position_clone);
+        all_positions.insert(asteroid_entity.to_string(), asteroid_position);
 
         // Remove money, move it very far away
-        current_position_clone.x += 500.0;
-        new_vector_to = current_position.vector_to(&current_position_clone);
+        let far_position = Position {
+            x: 502.0,
+            y: 0.0,
+            z: 0.0,
+        };
 
-        all_positions.insert(faraway_entity_id.to_string(), current_position_clone);
+        all_positions.insert(faraway_entity_id.to_string(), far_position);
+
+        let new_position = Position {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        };
 
         // Add a new nearby ship, which wasn't an old contact.
-        new_vector_to = current_position.vector_to(&current_position);
+        let new_vector_to = new_position.vector_to(&new_position);
         nearby_ship.distance = new_vector_to.mag;
         nearby_ship.azimuth = new_vector_to.azimuth;
         nearby_ship.elevation = new_vector_to.elevation;
