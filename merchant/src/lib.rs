@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate decscloud_codec as decs;
+extern crate decscloud_common as decs;
 extern crate waxosuit_guest as guest;
 
 use decs::systemmgr::*;

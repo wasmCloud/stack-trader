@@ -11,8 +11,7 @@
 //! system. This might appear visually as double-clicking an item from their inventory, having it appear
 //! in another list (or simply not show up in the other list), and then noticing a moment later that their
 //! credits have gone up
-extern crate decscloud_codec as codec;
-use codec::gateway::*;
+use decscloud_common::gateway::*;
 use guest::prelude::*;
 use stacktrader_types as trader;
 use trader::components::*;

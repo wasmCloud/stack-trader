@@ -1,4 +1,4 @@
-extern crate decscloud_codec as codec;
+extern crate decscloud_common as decs;
 
 const MS_PER_HOUR: f64 = 3_600_000.0;
 
@@ -110,7 +110,7 @@ pub struct RadarContact {
     pub distance_xy: u32,
     pub azimuth: f64,
     pub elevation: f64,
-    pub transponder: codec::gateway::ResourceIdentifier,
+    pub transponder: decs::gateway::ResourceIdentifier,
 }
 
 /// Represents a transponder component for a radar contact that dictates how it should be displayed in the game UI
@@ -142,7 +142,6 @@ pub struct MiningExtractor {
 pub struct CreditWallet {
     pub credits: i32,
 }
-
 
 #[cfg(test)]
 mod test {

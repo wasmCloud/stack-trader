@@ -14,10 +14,10 @@
 
 #[macro_use]
 extern crate serde_json;
-extern crate decscloud_codec as codec;
+extern crate decscloud_common as decs;
 extern crate waxosuit_guest as guest;
 
-use codec::systemmgr::*;
+use decs::systemmgr::*;
 use guest::prelude::*;
 use stacktrader_types as trader;
 use trader::components::*;
@@ -93,7 +93,7 @@ fn handle_frame(
         return Err("Unknown message subject received".into());
     }
 
-    let frame: codec::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
+    let frame: decs::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
 
     let position_value = ctx.kv().get(&format!(
         "decs:components:{}:{}:{}",
