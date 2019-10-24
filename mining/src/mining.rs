@@ -46,8 +46,9 @@ fn publish_extractor(
         entity_id,
         super::EXTRACTOR
     );
+    let payload = json!({ "params": extractor });
     ctx.msg()
-        .publish(&subject, None, &serde_json::to_vec(extractor)?)?;
+        .publish(&subject, None, &serde_json::to_vec(&payload)?)?;
     Ok(vec![])
 }
 
