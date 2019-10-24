@@ -80,9 +80,10 @@ fn extract_resource(
             super::INVENTORY
         );
         let inv_subject = format!("call.{}.add", player_inventory);
+        let add_payload = json!({"params" : resource_str});
         // Take the resource item as-is from the mining resource and add to player inventory
         ctx.msg()
-            .publish(&inv_subject, None, resource_str.as_bytes())?;
+            .publish(&inv_subject, None, &serde_json::to_vec(&add_payload)?)?;
         // The extractor target must always be the fully qualified ID of the mining_resource component
         let del_subject = format!("call.{}.delete", extractor.target);
         let params = json!({
