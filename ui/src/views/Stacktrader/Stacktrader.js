@@ -13,31 +13,31 @@ import Radar from './Radar'
 
 import ResClient from 'resclient';
 
-class Position {
-  x;
-  y;
-  z;
+// class Position {
+//   x;
+//   y;
+//   z;
 
-  constructor(x, y, z) {
-    this.x = x;
-    this.y = y;
-    this.z = z;
-  }
-}
+//   constructor(x, y, z) {
+//     this.x = x;
+//     this.y = y;
+//     this.z = z;
+//   }
+// }
 
-class Velocity {
-  mag;
-  ux;
-  uy;
-  uz;
+// class Velocity {
+//   mag;
+//   ux;
+//   uy;
+//   uz;
 
-  constructor(mag, ux, uy, uz) {
-    this.mag = mag;
-    this.ux = ux;
-    this.uy = uy;
-    this.uz = uz;
-  }
-}
+//   constructor(mag, ux, uy, uz) {
+//     this.mag = mag;
+//     this.ux = ux;
+//     this.uy = uy;
+//     this.uz = uz;
+//   }
+// }
 
 class Stacktrader extends Component {
   client;
@@ -54,13 +54,15 @@ class Stacktrader extends Component {
        */
       entity_id: "",
       shard: "",
-      position: new Position(0.0, 0.0, 0.0),
-      velocity: new Velocity(0, 0.0, 0.0, 0.0),
+      // position: new Position(0.0, 0.0, 0.0),
+      // velocity: new Velocity(0, 1.0, 1.0, 0.0),
+      position: { x: 0.0, y: 0.0, z: 0.0 },
+      velocity: { mag: 0, ux: 0.0, uy: 0.0, uz: 0.0 },
       contacts: [],
       target: null,
       target_name: "",
       radar_receiver: null,
-      inventory: null
+      inventory: []
     };
   }
 
@@ -88,7 +90,7 @@ class Stacktrader extends Component {
   }
 
   /**
-   * Change handler for velocity change
+   * Send `set` call to RESgate for velocity
    */
   handleVelocityChange = (change) => {
     let velocity = {
@@ -97,15 +99,13 @@ class Stacktrader extends Component {
       uy: change.uy ? change.uy : this.state.velocity.uy,
       uz: change.uz ? change.uz : this.state.velocity.uz,
     }
-    console.log(change)
-    this.setState({ velocity })
-    this.onUpdate()
+    this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.velocity`, 'set', velocity)
   }
 
   /**
    * Given an rid, navigate the current player to that target
    */
-  navigateToTarget = (rid) => {
+  setTarget = (rid) => {
     if (rid === 'delete') {
       this.setState({ target: null })
       return
@@ -124,7 +124,24 @@ class Stacktrader extends Component {
     })
   }
 
-  mineResource = (target) => {
+  /**
+   * Given a contact, make the player navigate to that contact
+   */
+  navigateToTarget = (contact) => {
+    let azimuth = contact.azimuth * Math.PI / 180
+    let ux = Math.cos(azimuth)
+    let uy = Math.sin(azimuth)
+    let uz = Number.parseFloat(((contact.elevation - 90) / - 90).toPrecision(1))
+    // Setting magnitude to be at least 100, to start moving the player there
+    let mag = this.state.velocity.mag < 100 ? 100 : this.state.velocity.mag
+    let velocity = { mag, ux, uy, uz }
+
+    this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.velocity`, 'set', velocity).then(_res => {
+      this.setTarget(`decs.components.${this.state.shard}.${contact.entity_id}`)
+    })
+  }
+
+  extractResource = (target) => {
     let rid = `${target}.mining_resource`
     let fps = 1 //TODO: Change if FPS changes
     this.client.get(rid).then(mining_resource => {
@@ -132,9 +149,13 @@ class Stacktrader extends Component {
         target: rid,
         remaining_ms: (mining_resource.qty / fps) * 1000
       }
-      console.log('setting' + ` decs.components.${this.state.shard}.${this.state.entity_id}.extractor ` + 'to')
-      console.log(extractor)
-      this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.extractor`, 'set', extractor)
+      this.client.get(`${target}.mining_lock`).then(_res => {
+        console.log("Resource is already being mined")
+      }).catch(_err => {
+        this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.extractor`, 'set', extractor).then(_res => {
+          this.client.call(`${target}.mining_lock`, 'set', { extractor: `decs.components.${this.state.shard}.${this.state.entity_id}.extractor` })
+        })
+      })
     })
   }
 
@@ -156,13 +177,16 @@ class Stacktrader extends Component {
 
   loading = () => <div className="animated fadeIn pt-1 text-center">Loading...</div>
 
-  toggle = (i) => {
-    const newArray = this.state.dropdownOpen.map((element, index) => {
-      return (index === i ? !element : false);
-    });
-    this.setState({
-      dropdownOpen: newArray,
-    });
+  getAzimuth = () => {
+    let ux = this.state.velocity.ux
+    let uy = this.state.velocity.uy
+    let azimuth = Math.round(Math.atan(uy / ux) * 180 / Math.PI)
+    if (ux < 0) {
+      azimuth += 180
+    } else if (ux > 0 && uy < 0) {
+      azimuth += 360
+    }
+    return azimuth
   }
 
   render() {
@@ -170,7 +194,7 @@ class Stacktrader extends Component {
     return (
       <div className="animated fadeIn">
         <Row>
-          <Col>
+          <Col md="6">
             <Card className="card-accent-primary">
               <CardHeader>
                 {this.state.entity_id}
@@ -178,23 +202,89 @@ class Stacktrader extends Component {
               <CardBody>
                 <Row>
                   <Col>
-                    <strong>Position:</strong> <br />
-                    x: {this.state.position.x.toPrecision(3)} <br />
-                    y: {this.state.position.y.toPrecision(3)} <br />
-                    z: {this.state.position.z.toPrecision(3)} <br />
+                    <Row>
+                      <strong>Position:</strong>
+                    </Row>
+                    <Row>
+                      x: {this.state.position.x.toPrecision(3)}
+                    </Row>
+                    <Row>
+                      y: {this.state.position.y.toPrecision(3)}
+                    </Row>
+                    <Row>
+                      z: {this.state.position.z.toPrecision(3)}
+                    </Row>
                   </Col>
                   <Col>
-                    <strong>Velocity:</strong><br />
-                    mag: {this.state.velocity.mag} <br />
-                    ux: {this.state.velocity.ux.toPrecision(3)} <br />
-                    uy: {this.state.velocity.uy.toPrecision(3)} <br />
-                    uz: {this.state.velocity.uz.toPrecision(3)} <br />
+                    <Row>
+                      <strong>Velocity:</strong>
+                    </Row>
+                    <Row>
+                      Magnitude (km/hr): <input type="range" min={0} max={3600} value={this.state.velocity.mag} step={10} class="slider" id="velocityMagnitude"
+                        onInput={(e) => {
+                          let velocity = this.state.velocity
+                          velocity.mag = Number.parseInt(e.target.value)
+                          this.setState({ velocity })
+                        }}
+                        onMouseUp={(e) => this.handleVelocityChange({ mag: Number.parseInt(e.target.value) })}
+                        onPointerUp={(e) => this.handleVelocityChange({ mag: Number.parseInt(e.target.value) })} /> {this.state.velocity.mag}
+                    </Row>
+                    <Row>
+                      Direction: <input type="range" min="0" max="360" value={this.getAzimuth()}
+                        onInput={(e) => {
+                          let angle = Number.parseInt(e.target.value) * Math.PI / 180
+                          let ux = Math.cos(angle)
+                          let uy = Math.sin(angle)
+                          let velocity = this.state.velocity
+                          velocity.ux = ux
+                          velocity.uy = uy
+                          this.setState({ velocity })
+                        }}
+                        onMouseUp={(e) => {
+                          let angle = Number.parseInt(e.target.value) * Math.PI / 180
+                          let ux = Math.cos(angle)
+                          let uy = Math.sin(angle)
+                          this.handleVelocityChange({ ux, uy })
+                        }}
+                        onTouchEnd={(e) => {
+                          let angle = Number.parseInt(e.target.value) * Math.PI / 180
+                          let ux = Math.cos(angle)
+                          let uy = Math.sin(angle)
+                          this.handleVelocityChange({ ux, uy })
+                        }} step="1" class="slider" id="velocityDirection" />
+                      <div style={{ width: '24px', height: '24px', transform: `rotate(${this.getAzimuth() <= 180 ? 90 - this.getAzimuth() : (this.getAzimuth() - 90) * -1}deg)` }}><i className="icon-arrow-up-circle font-2xl"></i></div>
+                    </Row>
+                    <Row>
+                      Elevation: <input type="range" min={-1} max={1} value={this.state.velocity.uz} step={0.1} class="slider" id="velocityDirection"
+                        onInput={(e) => {
+                          let velocity = this.state.velocity
+                          velocity.uz = Number.parseFloat(e.target.value)
+                          this.setState({ velocity })
+                        }}
+                        onMouseUp={(e) => this.handleVelocityChange({ uz: Number.parseFloat(e.target.value) })}
+                        onTouchEnd={(e) => this.handleVelocityChange({ uz: Number.parseFloat(e.target.value) })} />
+                      <div style={{ width: '24px', height: '24px', transform: `rotate(${this.state.velocity.uz > 0 ? 0 : 180}deg)` }}>
+                        <i className={`${this.state.velocity.uz === 0 ? 'icon-arrow-dot-circle' : 'icon-arrow-up-circle'} font-2xl`}></i>
+                      </div>
+                    </Row>
                   </Col>
                 </Row>
               </CardBody>
             </Card>
           </Col>
-          <Col>
+          <Col md="3">
+            <Card className="card-accent-primary">
+              <CardHeader>
+                Inventory
+              </CardHeader>
+              <CardBody>
+                {this.state.inventory.map(item =>
+                  <div>item: {item}</div>
+                )}
+              </CardBody>
+            </Card>
+          </Col>
+          <Col md="3">
             <Card className="card-accent-primary">
               <CardHeader>
                 Target
@@ -221,16 +311,6 @@ class Stacktrader extends Component {
                 </CardBody>}
             </Card>
           </Col>
-          <Col>
-            <Card className="card-accent-primary">
-              <CardHeader>
-                Inventory
-              </CardHeader>
-              <CardBody>
-                Empty
-              </CardBody>
-            </Card>
-          </Col>
         </Row>
 
         <Row>
@@ -240,7 +320,7 @@ class Stacktrader extends Component {
                 Radar
               </CardHeader>
               <CardBody>
-                {this.state.entity_id && <Radar client={this.client} shard={this.state.shard} entity={this.state.entity_id} navigateToTarget={this.navigateToTarget} />}
+                {this.state.entity_id && <Radar client={this.client} shard={this.state.shard} entity={this.state.entity_id} navigateToTarget={this.setTarget} />}
               </CardBody>
             </Card>
           </Col>
@@ -248,7 +328,7 @@ class Stacktrader extends Component {
             <Card className="card-accent-info">
               <CardHeader>
                 Radar Contacts
-            </CardHeader>
+                  </CardHeader>
               <CardBody>
                 <br />
                 <Table hover responsive className="table-outline mb-0 d-sm-table">
@@ -299,10 +379,13 @@ class Stacktrader extends Component {
                         <td>
                           <Col className="text-center">
                             <Row>
-                              <Button style={{ marginBottom: '2px', justifyContent: 'center' }} color="primary" size="sm" onClick={() => this.navigateToTarget(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Target</Button>
+                              <Button style={{ marginBottom: '2px', justifyContent: 'center' }} color="success" size="sm" onClick={() => this.navigateToTarget(contact)}>Navigate</Button>
+                            </Row>
+                            <Row>
+                              <Button style={{ marginBottom: '2px', justifyContent: 'center' }} color="primary" size="sm" onClick={() => this.setTarget(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Target</Button>
                             </Row>
                             {contact.transponder.object_type === "asteroid" && <Row>
-                              <Button style={{ justifyContent: 'center' }} color="warning" size="sm" onClick={() => this.mineResource(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Mine</Button>
+                              <Button style={{ justifyContent: 'center' }} color="warning" size="sm" onClick={() => this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Mine</Button>
                             </Row>}
                             {contact.transponder.object_type === "starbase" && <Row>
                               <Button style={{ justifyContent: 'center' }} color="warning" size="sm" onClick={() => console.log("Sell to starbase...")}>Sell</Button>
@@ -317,7 +400,7 @@ class Stacktrader extends Component {
             </Card>
           </Col>
         </Row>
-      </div>
+      </div >
     );
   }
 
@@ -355,9 +438,19 @@ class Stacktrader extends Component {
       }).catch(err => {
         console.log(err)
       })
+      this.setupInventory(entity)
     }).catch(err => {
       console.log(err);
     });
+  }
+
+  setupInventory(entity) {
+    this.client.get(`decs.components.${this.state.shard}.${entity}.inventory`).then(inventory => {
+      this.setState({ inventory })
+      inventory.on('change', this.onUpdate)
+    }).catch(_err => {
+      setTimeout(() => this.setupInventory(entity), 1000)
+    })
   }
 
   setupRadarContacts(entity) {
@@ -367,7 +460,7 @@ class Stacktrader extends Component {
       this.setState({ contacts })
     }).catch(err => {
       console.log(err)
-      setTimeout(() => this.setupRadarContacts(entity), 500)
+      setTimeout(() => this.setupRadarContacts(entity), 1000)
     })
   }
 

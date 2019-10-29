@@ -24,7 +24,7 @@ pub(crate) fn handle_frame(
         // or delete the extractor and add the resource to the player's inventory
         let extractor: MiningExtractor = serde_json::from_str(&extractor_str)?;
         let extractor = update_extractor(extractor, frame.elapsed_ms);
-        if extractor.remaining_ms == 0.0 {
+        if extractor.remaining_ms <= 0.0 {
             extract_resource(ctx, &extractor, &frame.shard, &frame.entity_id)?;
         } else {
             publish_extractor(ctx, &extractor, &frame.shard, &frame.entity_id)?;
@@ -69,7 +69,7 @@ fn extract_resource(
     shard: &str,
     entity_id: &str,
 ) -> CallResult {
-    let resource_value = ctx.kv().get(&extractor.target)?;
+    let resource_value = ctx.kv().get(&extractor.target.replace(".", ":"))?;
     if let Some(resource_str) = resource_value {
         // This works because the frame's entity and shard are that of the
         // "owner" of the extractor component
@@ -80,7 +80,7 @@ fn extract_resource(
             super::INVENTORY
         );
         let inv_subject = format!("call.{}.add", player_inventory);
-        let add_payload = json!({"params" : resource_str});
+        let add_payload = json!({ "params": resource_str });
         // Take the resource item as-is from the mining resource and add to player inventory
         ctx.msg()
             .publish(&inv_subject, None, &serde_json::to_vec(&add_payload)?)?;
@@ -91,9 +91,26 @@ fn extract_resource(
                 "rid": extractor.target
             }
         });
-        // Delete the extractor component
+        // Delete the extractor target component
         ctx.msg()
             .publish(&del_subject, None, &serde_json::to_vec(&params)?)?;
+
+        // Delete the extractor
+        let del_extractor_subject = format!(
+            "call.decs.components.{}.{}.extractor.delete",
+            shard, entity_id
+        );
+        ctx.msg().publish(
+            &del_extractor_subject,
+            None,
+            &serde_json::to_vec(&json!({
+                "params": {
+                    "rid": format!("decs.components.{}.{}.extractor", shard, entity_id)
+                }
+            }))?,
+        )?;
+
+        //TODO: Delete the lock
         Ok(vec![])
     } else {
         Err("Resource mining target did not exist".into())

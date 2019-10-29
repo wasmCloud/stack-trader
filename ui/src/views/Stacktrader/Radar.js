@@ -57,8 +57,6 @@ class Radar extends Component {
                 uz: 0.0
             }
 
-            this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.velocity`, 'set', velocity)
-
             this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.target`, 'delete').then(r => {
                 this.props.navigateToTarget('delete')
             })
@@ -66,6 +64,7 @@ class Radar extends Component {
     }
 
     navigateToContact = (_event, contact) => {
+        // this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.velocity`, 'set', velocity)
         this.props.navigateToTarget(`decs.components.${this.props.shard}.${contact.entity_id}`)
     }
 
