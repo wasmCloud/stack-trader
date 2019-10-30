@@ -3,8 +3,8 @@ kind: Deployment
 metadata:
   creationTimestamp: null
   labels:
-    io.kompose.service: gameloop
-  name: gameloop
+    app: system-mgr
+  name: system-mgr
 spec:
   replicas: 1
   strategy: {}
@@ -12,24 +12,26 @@ spec:
     metadata:
       creationTimestamp: null
       labels:
-        io.kompose.service: gameloop
+        app: system-mgr
     spec:
       containers:
       - env:
-        - name: TIMER_INTERVAL_FPS
-          value: "10"
         - name: PORT
-          value: "9001"
+          value: "9000"
+        - name: TIMER_INTERVAL_FPS
+          value: "1"
         - name: RUST_LOG
           value: warn,cranelift_wasm=warn
         - name: NATS_URL
           value: nats://nats:4222
         - name: REDIS_URL
           value: redis://redis:6379
-        image: decscloud/game_loop
-        name: gameloop
+        - name: NATS_SUBSCRIPTION
+          value: get.decs.system.*,get.decs.systems,access.decs.system.*,access.decs.systems,decs.system.registry.replies,decs.*.gameloop
+        image: decscloud/system_mgr
+        name: system-mgr
         ports:
-        - containerPort: 9001
+        - containerPort: 9000
         resources: {}
       restartPolicy: Always
 status: {}

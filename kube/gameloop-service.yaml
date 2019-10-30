@@ -3,14 +3,14 @@ kind: Service
 metadata:
   creationTimestamp: null
   labels:
-    app: redis
-  name: redis
+    app: gameloop
+  name: gameloop
 spec:
   ports:
-  - name: "6380"
-    port: 6380
-    targetPort: 6379
+  - name: "9000"
+    port: 9000
+    targetPort: 9000
   selector:
-    app: redis
+    app: gameloop
 status:
   loadBalancer: {}

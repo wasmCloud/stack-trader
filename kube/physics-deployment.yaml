@@ -3,7 +3,8 @@ kind: Deployment
 metadata:
   creationTimestamp: null
   labels:
-    io.kompose.service: physics
+    app: physics
+    game: stacktrader
   name: physics
 spec:
   replicas: 1
@@ -12,12 +13,15 @@ spec:
     metadata:
       creationTimestamp: null
       labels:
-        io.kompose.service: physics
+        app: physics
+        game: stacktrader
     spec:
       containers:
       - env:
+        - name: PORT
+          value: "9000"
         - name: RUST_LOG
-          value: warn,cranelift_wasm=warn
+          value: warn
         - name: NATS_URL
           value: nats://nats:4222
         - name: REDIS_URL
@@ -27,7 +31,7 @@ spec:
         image: stacktrader/physics
         name: physics
         ports:
-        - containerPort: 9005
+        - containerPort: 9000
         resources: {}
       restartPolicy: Always
 status: {}

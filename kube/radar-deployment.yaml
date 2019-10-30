@@ -3,8 +3,9 @@ kind: Deployment
 metadata:
   creationTimestamp: null
   labels:
-    io.kompose.service: nav
-  name: nav
+    app: radar
+    game: stacktrader
+  name: radar
 spec:
   replicas: 1
   strategy: {}
@@ -12,22 +13,25 @@ spec:
     metadata:
       creationTimestamp: null
       labels:
-        io.kompose.service: nav
+        app: radar
+        game: stacktrader
     spec:
       containers:
       - env:
+        - name: PORT
+          value: "9000"
         - name: RUST_LOG
-          value: warn,cranelift_wasm=warn
+          value: warn
         - name: NATS_URL
           value: nats://nats:4222
         - name: REDIS_URL
           value: redis://redis:6379
         - name: NATS_SUBSCRIPTION
-          value: decs.frames.*.navigation, decs.system.registry
-        image: stacktrader/navigation
-        name: nav
+          value: decs.frames.*.radar,event.decs.components.*.*.position.change, decs.system.registry
+        image: stacktrader/radar
+        name: radar
         ports:
-        - containerPort: 9007
+        - containerPort: 9000
         resources: {}
       restartPolicy: Always
 status: {}

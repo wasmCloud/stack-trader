@@ -3,14 +3,14 @@ kind: Service
 metadata:
   creationTimestamp: null
   labels:
-    io.kompose.service: nav
-  name: nav
+    app: physics
+  name: physics
 spec:
   ports:
-  - name: "9007"
-    port: 9007
-    targetPort: 9007
+  - name: "9000"
+    port: 9000
+    targetPort: 9000
   selector:
-    io.kompose.service: nav
+    app: physics
 status:
   loadBalancer: {}

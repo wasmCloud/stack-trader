@@ -4,7 +4,7 @@ metadata:
   name: alpine  
 spec:
   containers:
-  - image: alpine:3.2
+  - image: jburks725/alpine-dns-test:0.0.3
     command:
       - /bin/sh
       - "-c"
