@@ -1,0 +1,28 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: resgate
+  name: resgate
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: resgate
+    spec:
+      containers:
+      - args:
+        - --nats
+        - nats://nats:4222
+        - --debug
+        image: resgateio/resgate
+        name: resgate
+        ports:
+        - containerPort: 8080
+        resources: {}
+      restartPolicy: Always
+status: {}

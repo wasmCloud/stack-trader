@@ -1,0 +1,35 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null  
+  name: component-mgr
+  labels:
+    app: component-mgr
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null      
+      labels:
+        app: component-mgr
+    spec:
+      containers:
+      - env:
+        - name: PORT
+          value: "9000"
+        - name: RUST_LOG
+          value: warn
+        - name: NATS_URL
+          value: nats://nats:4222
+        - name: REDIS_URL
+          value: redis://redis:6379
+        - name: NATS_SUBSCRIPTION
+          value: get.decs.components.*.*.>,call.decs.components.*.*.>,access.decs.components.>
+        image: decscloud/component_mgr
+        name: component-mgr
+        ports:
+        - containerPort: 9000
+        resources: {}
+      restartPolicy: Always
+status: {}
