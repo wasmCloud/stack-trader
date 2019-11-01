@@ -10,7 +10,7 @@ import {
   Button,
 } from 'reactstrap';
 import Radar from './Radar'
-import Inventory from './Inventory'
+import Inventory, { StackTypes } from './Inventory'
 
 import ResClient from 'resclient';
 
@@ -36,8 +36,9 @@ class Stacktrader extends Component {
       target_name: "",
       radar_receiver: null,
       inventory: [],
-      extracto: null,
-      mining_resource_eta_ms: 0
+      extractor: null,
+      mining_resource_eta_ms: 0,
+      recently_mined: null
     };
   }
 
@@ -124,22 +125,15 @@ class Stacktrader extends Component {
         target: rid,
         remaining_ms: (mining_resource.qty / fps) * 1000
       }
-      this.setState({ mining_resource_eta_ms: (mining_resource.qty / fps) * 1000 })
+      this.setState({ mining_resource_eta_ms: (mining_resource.qty / fps) * 1000, recently_mined: null })
       this.client.get(`${target}.mining_lock`).then(_res => {
-        console.log("Resource is already being mined")
+        console.log("Resource is already being mined")//TODO: Display error message here. 
       }).catch(_err => {
         this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.extractor`, 'set', extractor).then(_res => {
           this.client.call(`${target}.mining_lock`, 'set', { extractor: `decs.components.${this.state.shard}.${this.state.entity_id}.extractor` })
           this.client.get(`decs.components.${this.state.shard}.${this.state.entity_id}.extractor`).then(extractor => {
             this.setState({ extractor })
-            extractor.on('change', () => {
-              this.onUpdate()
-              if (!extractor) {
-                this.setState({ extractor: null })
-              } else if (extractor.remaining_ms <= 250) {
-                setTimeout(() => this.setState({ extractor: null }), 500)
-              }
-            })
+            extractor.on('change', this.onUpdate)
           })
         })
       })
@@ -147,7 +141,7 @@ class Stacktrader extends Component {
   }
 
   /**
-   * Helper function to retrieve a Target's UI friendly name from its rid
+   * Helper function to set a Target's UI friendly name from its rid
    */
   getNameForRid = (rid) => {
     this.client.get(`${rid}.transponder`).then(transponder => {
@@ -268,8 +262,14 @@ class Stacktrader extends Component {
                 <Inventory inventory={Array.from(this.state.inventory)} />
                 {this.state.extractor &&
                   <Progress animated className="mb-3"
-                    color={"warn"}
+                    color={"warning"}
                     value={100 * (this.state.mining_resource_eta_ms - this.state.extractor.remaining_ms) / this.state.mining_resource_eta_ms}>Extracting...</Progress>}
+                {this.state.recently_mined &&
+                  <Row style={{ marginRight: '0px', marginLeft: '0px' }}>
+                    <br />
+                    Last mined: {this.state.recently_mined.qty} {this.state.recently_mined.stack_type} stacks
+                    {/* TODO: Nice to have later, UI friendly name of resource we mined above. */}
+                  </Row>}
               </CardBody>
             </Card>
           </Col>
@@ -454,7 +454,22 @@ class Stacktrader extends Component {
   setupInventory(entity) {
     this.client.get(`decs.components.${this.state.shard}.${entity}.inventory`).then(inventory => {
       this.setState({ inventory })
-      inventory.on('change', this.onUpdate)
+      inventory.on('remove', this.onUpdate)
+      inventory.on('add', (add) => {
+        if (!add.item) {
+          return
+        } else if (add.item.qty && add.item.stack_type) {
+          this.setState({
+            recently_mined: {
+              name: this.state.extractor.target,
+              qty: add.item.qty,
+              stack_type: add.item.stack_type
+            },
+            extractor: null
+          })
+          this.onUpdate()
+        }
+      })
     }).catch(_err => {
       setTimeout(() => this.setupInventory(entity), 1000)
     })
@@ -494,7 +509,7 @@ class Stacktrader extends Component {
       stack_type,
       qty: entity_id.length
     }
-    this.client.call(`decs.components.${this.state.shard}.${entity_id}.mining_resource`, 'set', mining_resource).then(res => {
+    this.client.call(`decs.components.${this.state.shard}.${entity_id}.mining_resource`, 'set', mining_resource).then(_res => {
       // console.log(res)
     }).catch(err => {
       console.log(err)

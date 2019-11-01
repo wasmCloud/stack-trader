@@ -185,7 +185,7 @@ services:
       - nats
       - redis
     environment:
-      - "RUST_LOG=info,cranelift_wasm=warn"
+      - "RUST_LOG=warn,cranelift_wasm=warn"
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=decs.frames.*.mining, decs.system.registry"

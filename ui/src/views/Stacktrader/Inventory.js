@@ -3,7 +3,7 @@ import {
     Row,
 } from 'reactstrap';
 
-const StackTypes = {
+export const StackTypes = {
     TASTY: 'tasty',
     SPENDY: 'spendy',
     CRITICAL: 'critical'
