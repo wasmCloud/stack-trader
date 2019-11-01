@@ -74,6 +74,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "#
     );
 
+    create_shard(&client, &params)?;
+
     for x in 0..params.asteroids {
         create_asteroid(&client, &params, x)?;
     }
@@ -84,6 +86,43 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     create_starbase(&client, &params)?;
     println!("Created Starbase Alpha at (0,0,0)");
+
+    Ok(())
+}
+
+// This will either create a new shard or set an existing one to a 0-current shard.
+// Using genesis on a shard shouldn't have active entities in it anyway.
+fn create_shard(nats: &Client, params: &UniverseParameters) -> Result<(), Box<dyn Error>> {
+    let rid = format!("decs.shard.{}", params.shard_name);
+    create_component(
+        nats,
+        &rid,
+        json!({
+            "name": params.shard_name,
+            "capacity": params.shard_capacity,
+            "current": 0
+        })
+    )?;
+    set_shard_metadata(nats, params)?;
+
+    Ok(())
+}
+
+// The shard's universe size is the `metadata` component on the `universe` entity
+fn set_shard_metadata(nats: &Client, params: &UniverseParameters) -> Result<(), Box<dyn Error>> {
+    let rid = format!("decs.components.{}.universe.metadata", params.shard_name);
+    create_component(
+        nats,
+        &rid,
+        json!({
+            "min_x": params.from.x,
+            "min_y": params.from.y,
+            "min_z": params.from.z,
+            "max_x": params.to.x,
+            "max_y": params.to.y,
+            "max_z": params.to.z
+        })
+    )?;
 
     Ok(())
 }
