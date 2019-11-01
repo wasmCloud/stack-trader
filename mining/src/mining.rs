@@ -79,8 +79,9 @@ fn extract_resource(
             entity_id,
             super::INVENTORY
         );
-        let inv_subject = format!("call.{}.add", player_inventory);
-        let add_payload = json!({ "params": resource_str });
+        let inv_subject = format!("call.{}.new", player_inventory);
+        let mining_resource: MiningResource = serde_json::from_str(&resource_str)?;
+        let add_payload = json!({ "params": mining_resource });
         // Take the resource item as-is from the mining resource and add to player inventory
         ctx.msg()
             .publish(&inv_subject, None, &serde_json::to_vec(&add_payload)?)?;
@@ -95,7 +96,7 @@ fn extract_resource(
         ctx.msg()
             .publish(&del_subject, None, &serde_json::to_vec(&params)?)?;
 
-        // Delete the extractor
+        // Delete the extractor component
         let del_extractor_subject = format!(
             "call.decs.components.{}.{}.extractor.delete",
             shard, entity_id
@@ -110,7 +111,52 @@ fn extract_resource(
             }))?,
         )?;
 
-        //TODO: Delete the lock
+        let asteroid_entity_id = extractor.target.split(".").collect::<Vec<&str>>()[3];
+
+        // Delete lock component
+        let del_lock_subject = format!(
+            "call.decs.components.{}.{}.mining_lock.delete",
+            shard, asteroid_entity_id
+        );
+        ctx.msg().publish(
+            &del_lock_subject,
+            None,
+            &serde_json::to_vec(&json!({
+                "params": {
+                    "rid": format!("{}.mining_lock", extractor.target)
+                }
+            }))?,
+        )?;
+
+        // Delete the transponder and position to remove it from radar detection
+        let del_asteroid_subject = format!(
+            "call.decs.components.{}.{}.transponder.delete",
+            shard, asteroid_entity_id
+        );
+        ctx.msg().publish(
+            &del_asteroid_subject,
+            None,
+            &serde_json::to_vec(&json!({
+                "params": {
+                    "rid": format!("decs.components.{}.{}.transponder", shard, asteroid_entity_id)
+                }
+            }))?,
+        )?;
+
+        let del_asteroid_position_subject = format!(
+            "call.decs.components.{}.{}.position.delete",
+            shard, asteroid_entity_id
+        );
+        ctx.msg().publish(
+            &del_asteroid_position_subject,
+            None,
+            &serde_json::to_vec(&json!({
+                "params": {
+                    "rid": format!("decs.components.{}.{}.position", shard, asteroid_entity_id)
+                }
+            }))?,
+        )?;
+
         Ok(vec![])
     } else {
         Err("Resource mining target did not exist".into())

@@ -29,34 +29,8 @@ class Radar extends Component {
         })
     }
 
-    computeVelocity = (event) => {
-        let x = event.offsetX - 150
-        let y = 150 - event.offsetY
-
+    deleteTarget = (event) => {
         if (event.target instanceof HTMLDivElement) {
-            //TODO: Velocity does not scale correctly for radar circle
-            let rads = Math.atan(y / x)
-            let distance = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2)) / 150
-            let ux = Math.cos(rads) * distance
-            let uy = Math.sin(rads) * distance
-
-            if (x <= 0) {
-                ux *= -1
-                uy *= -1
-            }
-
-            console.log(x)
-            console.log(y)
-            console.log(ux)
-            console.log(uy)
-
-            let velocity = {
-                mag: 900,
-                ux,
-                uy,
-                uz: 0.0
-            }
-
             this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.target`, 'delete').then(r => {
                 this.props.navigateToTarget('delete')
             })
@@ -64,7 +38,6 @@ class Radar extends Component {
     }
 
     navigateToContact = (_event, contact) => {
-        // this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.velocity`, 'set', velocity)
         this.props.navigateToTarget(`decs.components.${this.props.shard}.${contact.entity_id}`)
     }
 
@@ -95,7 +68,7 @@ class Radar extends Component {
             <div id="radar-container">
                 <div id="radar" className="animated">
                     <i style={{ pointerEvents: 'none' }} className="player-rocket radar-icon icon-rocket icons font-2xl"><i></i></i>
-                    <div id="guides" onClick={(e) => this.computeVelocity(e.nativeEvent)}>
+                    <div id="guides" onClick={(e) => this.deleteTarget(e.nativeEvent)}>
                         <div className="circle" style={{ pointerEvents: 'none' }}></div>
                         {dots}
                     </div>

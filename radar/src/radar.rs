@@ -65,7 +65,7 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
                 },
             );
 
-        let all_positions = POSITIONS.read().unwrap();
+        let all_positions = POSITIONS.read().unwrap().clone();
         let updates = radar_updates(
             &frame.entity_id,
             &frame.shard,
@@ -73,6 +73,7 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
             &radar_receiver,
             &old_contacts,
             &all_positions,
+            Some(&ctx),
         );
 
         let _results = updates
@@ -135,6 +136,7 @@ fn radar_updates(
     radar_receiver: &RadarReceiver,
     old_contacts: &HashMap<String, RadarContact>,
     all_positions: &HashMap<String, Position>,
+    ctx: Option<&CapabilitiesContext>,
 ) -> Vec<RadarContactDelta> {
     let contacts: Vec<String> = old_contacts
         .values()
@@ -142,19 +144,31 @@ fn radar_updates(
         .collect();
     all_positions
         .iter()
-        .filter_map(|(k, v)| {
-            if contacts.contains(k) {
+        .filter_map(|(ent_id, pos)| {
+            if contacts.contains(ent_id) {
                 let mut rid: String = "".to_string();
-                if let Some((key, _val)) = old_contacts.iter().find(|(_k, v)| v.entity_id == *k) {
-                    rid = key.to_string().replace(":", ".");
+                if let Some((entity_rid, _val)) =
+                    old_contacts.iter().find(|(_k, v)| v.entity_id == *ent_id)
+                {
+                    rid = entity_rid.to_string().replace(":", ".");
                 }
-                if within_radius(current_position, v, radar_receiver.radius) {
-                    let vector_to = current_position.vector_to(v);
-                    let transponder = transponder_for_entity(shard, &k.clone());
+                if ctx.is_some()
+                    && !ctx
+                        .unwrap()
+                        .kv()
+                        .exists(&format!("decs:components:{}:{}:transponder", shard, ent_id))
+                        .unwrap_or(true)
+                {
+                    ctx.unwrap().log(&format!("Removing: {}", ent_id));
+                    POSITIONS.write().unwrap().remove(ent_id);
+                    Some(RadarContactDelta::Remove(rid))
+                } else if within_radius(current_position, pos, radar_receiver.radius) {
+                    let vector_to = current_position.vector_to(pos);
+                    let transponder = transponder_for_entity(shard, &ent_id.clone());
                     Some(RadarContactDelta::Change(
                         rid,
                         RadarContact {
-                            entity_id: k.clone().to_string(),
+                            entity_id: ent_id.clone().to_string(),
                             distance: vector_to.mag,
                             distance_xy: vector_to.distance_xy,
                             azimuth: vector_to.azimuth,
@@ -165,11 +179,13 @@ fn radar_updates(
                 } else {
                     Some(RadarContactDelta::Remove(rid))
                 }
-            } else if entity_id != k && within_radius(current_position, &v, radar_receiver.radius) {
-                let vector_to = current_position.vector_to(v);
-                let transponder = transponder_for_entity(shard, &k.clone());
+            } else if entity_id != ent_id
+                && within_radius(current_position, &pos, radar_receiver.radius)
+            {
+                let vector_to = current_position.vector_to(pos);
+                let transponder = transponder_for_entity(shard, &ent_id.clone());
                 Some(RadarContactDelta::Add(RadarContact {
-                    entity_id: k.clone().to_string(),
+                    entity_id: ent_id.clone().to_string(),
                     distance: vector_to.mag,
                     distance_xy: vector_to.distance_xy,
                     azimuth: vector_to.azimuth,
@@ -206,6 +222,23 @@ pub(crate) fn handle_entity_position_change(
         .insert(subject[4].to_string(), position);
     Ok(vec![])
 }
+
+// /// Receives messages on the subject `event.decs.components.{shard}.{entity}.position.change`
+// /// Stores entity position in-memory in the POSITIONS HashMap
+// /// The cache is used later to discover nearby radar_contacts
+// pub(crate) fn handle_entity_position_change(
+//     _ctx: &CapabilitiesContext,
+//     msg: messaging::BrokerMessage,
+// ) -> CallResult {
+//     let subject: Vec<&str> = msg.subject.split('.').collect();
+//     let position_value: serde_json::Value = serde_json::from_slice(&msg.body)?;
+//     let position: Position = serde_json::from_value::<Position>(position_value["values"].clone())?;
+//     POSITIONS
+//         .write()
+//         .unwrap()
+//         .insert(subject[4].to_string(), position);
+//     Ok(vec![])
+// }
 
 /// Helper function to clean up determining if an entity is within a radius
 fn within_radius(entity: &Position, target: &Position, radius: f64) -> bool {
@@ -344,6 +377,7 @@ mod test {
             &radar_receiver,
             &old_contacts,
             &all_positions,
+            None,
         );
 
         assert_eq!(changes.len(), 2);
@@ -443,6 +477,7 @@ mod test {
             &radar_receiver,
             &old_contacts,
             &all_positions,
+            None,
         );
 
         assert_eq!(changes.len(), 2);
@@ -535,6 +570,7 @@ mod test {
             &radar_receiver,
             &old_contacts,
             &all_positions,
+            None,
         );
 
         assert_eq!(changes.len(), 3);
@@ -641,6 +677,7 @@ mod test {
             &radar_receiver,
             &old_contacts,
             &all_positions,
+            None,
         );
 
         assert_eq!(changes.len(), 3);
