@@ -1,4 +1,6 @@
 language: rust
+script:
+  - bash build.sh --verbose
 rust:
   - stable
   - nightly
