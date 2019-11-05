@@ -20,7 +20,7 @@ class Stacktrader extends Component {
   constructor(props) {
     super(props);
 
-    this.client = new ResClient('ws://localhost:8080')
+    this.client = new ResClient('/resgate')
 
     this.state = {
       dropdownOpen: new Array(30).fill(false),
