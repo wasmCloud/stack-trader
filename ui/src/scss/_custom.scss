@@ -225,3 +225,21 @@ i.player-rocket:before {
     border-color: #333;
   }
 }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  background: #20a8d8;
+  height: 18px;
+  width: 18px;
+  margin-top: -8px;
+  border-radius: 99px;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 300px;
+  height: 4px;
+  background: #ddd;
+}

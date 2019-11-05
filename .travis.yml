@@ -5,4 +5,18 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
+  include:
+    - name: build
+      rust: stable
+      before_script:
+        - rustup target add wasm32-unknown-unknown
+      script:
+        - bash build.sh --verbose
+    # - name: test
+    #   env: RUST_BACKTRACE=1
+    #   rust: stable
+    #   before_script:
+    #     - rustup target add wasm32-unknown-unknown
+    #   script:
+    #     - cargo test --all --locked
 fast_finish: true

@@ -46,4 +46,4 @@ release:
 	wascap sign ../target/wasm32-unknown-unknown/release/radar.wasm ../target/wasm32-unknown-unknown/release/radar_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
 
 docker: release
-	docker build -t radar .
+	docker build -t stacktrader/radar .

@@ -46,4 +46,4 @@ release:
 	wascap sign ../target/wasm32-unknown-unknown/release/mining.wasm ../target/wasm32-unknown-unknown/release/mining_s.wasm -a ./.keys/account.nk -m ./.keys/module.nk -s -g -k
 
 docker: release
-	docker build -f ../Dockerfile.mining -t stacktrader/mining ../
+	docker build -f ./Dockerfile -t stacktrader/mining ../
