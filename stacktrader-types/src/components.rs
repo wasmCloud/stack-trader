@@ -2,6 +2,18 @@ extern crate decscloud_common as decs;
 
 const MS_PER_HOUR: f64 = 3_600_000.0;
 
+/// Represents the metadata and parameters for a given universe (the physical space 
+/// contained within a shard)
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+pub struct UniverseMetadata {
+    pub min_x: f64,
+    pub min_y: f64,
+    pub min_z: f64,
+    pub max_x: f64,
+    pub max_y: f64,
+    pub max_z: f64
+}
+
 /// Represents a position in 3-dimensional space, assumed unit is Kilometers
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Copy)]
 pub struct Position {

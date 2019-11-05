@@ -1,0 +1,35 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: shard-mgr
+  name: shard-mgr
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: shard-mgr
+    spec:
+      containers:
+      - env:
+        - name: PORT
+          value: "9000"
+        - name: RUST_LOG
+          value: warn
+        - name: NATS_URL
+          value: nats://nats:4222
+        - name: REDIS_URL
+          value: redis://redis:6379
+        - name: NATS_SUBSCRIPTION
+          value: get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.*
+        image: decscloud/shard_mgr
+        name: shard-mgr
+        ports:
+        - containerPort: 9000
+        resources: {}
+      restartPolicy: Always
+status: {}

@@ -1,0 +1,25 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: nats
+  name: nats
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nats
+    spec:
+      containers:
+      - image: nats:2.0.0
+        name: nats
+        ports:
+        - containerPort: 4222
+        - containerPort: 8222
+        resources: {}
+      restartPolicy: Always
+status: {}
