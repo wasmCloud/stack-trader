@@ -19,6 +19,10 @@ struct Opt {
     /// Output file
     #[structopt(short, long, parse(from_os_str))]
     input: PathBuf,
+
+    /// Destroy flag
+    #[structopt(short, long)]
+    purge: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -74,16 +78,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "#
     );
 
-    // Create shard
-    client.publish(
-        &format!("call.decs.shard.{}.set", params.shard_name),
-        &serde_json::to_vec(&serde_json::to_value(serde_json::json!({"params": {
-            "current": 0,
-            "name": params.shard_name,
-            "capacity": params.shard_capacity
-        }}))?)?,
-        None,
-    )?;
+    create_shard(&client, &params)?;
 
     for x in 0..params.asteroids {
         create_asteroid(&client, &params, x)?;
@@ -106,11 +101,11 @@ fn create_shard(nats: &Client, params: &UniverseParameters) -> Result<(), Box<dy
     create_component(
         nats,
         &rid,
-        json!({
+        json!({"params": {
             "name": params.shard_name,
             "capacity": params.shard_capacity,
             "current": 0
-        }),
+        }}),
     )?;
     set_shard_metadata(nats, params)?;
 
@@ -123,14 +118,14 @@ fn set_shard_metadata(nats: &Client, params: &UniverseParameters) -> Result<(), 
     create_component(
         nats,
         &rid,
-        json!({
+        json!({"params": {
             "min_x": params.from.x,
             "min_y": params.from.y,
             "min_z": params.from.z,
             "max_x": params.to.x,
             "max_y": params.to.y,
             "max_z": params.to.z
-        }),
+        }}),
     )?;
 
     Ok(())
