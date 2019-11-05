@@ -29,12 +29,12 @@ class Stacktrader extends Component {
        */
       entity_id: "",
       shard: "",
-      position: { x: 0.0, y: 0.0, z: 0.0 },
+      position: { x: -50.0, y: 100.0, z: 30.0 },
       velocity: { mag: 0, ux: 0.0, uy: 1.0, uz: 0.0 },
       contacts: [],
       target: null,
       target_name: "",
-      radar_receiver: null,
+      radar_receiver: { "radius": 25.0 },
       inventory: [],
       extractor: null,
       mining_resource_eta_ms: 0,
@@ -43,13 +43,13 @@ class Stacktrader extends Component {
   }
 
   componentDidMount() {
-    this.setupPlayer("Player1", "the_void");
+    this.setupPlayer("Player1", "mainworld");
   }
 
   setupPlayer(entity_id, shard) {
     this.setState({ entity_id })
     this.setState({ shard })
-    this.setupLocalDemo(); //TODO: Remove after connecting genesis
+    this.initializePlayer();
   }
 
   /**
@@ -108,7 +108,10 @@ class Stacktrader extends Component {
     let ux = Math.cos(azimuth)
     let uy = Math.sin(azimuth)
     let uz = Number.parseFloat(((contact.elevation - 90) / - 90).toPrecision(1))
-    // Setting magnitude to be at least 100, to start moving the player there
+
+    //TODO: Issue here, ux/uy are not to scale with uz to correctly navigate a player to a target at a different elevation
+
+    // Setting magnitude to be at least 500, to start moving the player there
     let mag = this.state.velocity.mag === 0 ? 500 : this.state.velocity.mag
     let velocity = { mag, ux, uy, uz }
 
@@ -260,13 +263,13 @@ class Stacktrader extends Component {
               </CardHeader>
               <CardBody>
                 <Inventory inventory={Array.from(this.state.inventory)} />
+                <br />
                 {this.state.extractor &&
                   <Progress animated className="mb-3"
                     color={"warning"}
                     value={100 * (this.state.mining_resource_eta_ms - this.state.extractor.remaining_ms) / this.state.mining_resource_eta_ms}>Extracting...</Progress>}
                 {this.state.recently_mined &&
                   <Row style={{ marginRight: '0px', marginLeft: '0px' }}>
-                    <br />
                     Last mined: {this.state.recently_mined.qty} {this.state.recently_mined.stack_type} stacks
                     {/* TODO: Nice to have later, UI friendly name of resource we mined above. */}
                   </Row>}
@@ -285,7 +288,7 @@ class Stacktrader extends Component {
                       Targeting: {this.state.target_name}
                     </Row>
                     <Row>
-                      Distance:  {this.state.target.eta_ms > 0.0 ? this.state.target.distance_km.toPrecision(2) + "km" : "Target within range"}
+                      Distance:  {this.state.target.eta_ms > 0.0 || this.state.target.distance_km > 5.0 ? this.state.target.distance_km.toPrecision(2) + "km" : "Target within range"}
                     </Row>
                     <Row>
                       ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h/
@@ -293,7 +296,7 @@ class Stacktrader extends Component {
                       ${(this.state.target.eta_ms / 1000).toPrecision(3)}s`}
                     </Row>
                     <Progress animated className="mb-3"
-                      color={this.state.target.eta_ms <= 0.0 ? "success" : "primary"}
+                      color={this.state.target.eta_ms <= 0.0 && this.state.target.distance_km <= 5.0 ? "success" : "primary"}
                       value={this.state.target.eta_ms <= 0.0 ? 100 :
                         this.state.target.distance_km >= this.state.radar_receiver.radius ? 0 :
                           100 * (this.state.radar_receiver.radius - Number.parseFloat(this.state.target.distance_km)) / this.state.radar_receiver.radius} />
@@ -411,12 +414,11 @@ class Stacktrader extends Component {
     );
   }
 
-  // Demo functions begin
-  setupLocalDemo() {
+  initializePlayer() {
     this.client.get('decs.shards').then(_shards => {
       let position = this.state.position;
       let velocity = this.state.velocity;
-      let radar_receiver = { "radius": 10.0 };
+      let radar_receiver = this.state.radar_receiver;
       let entity = this.state.entity_id
 
       this.client.call(`decs.components.${this.state.shard}.${entity}.velocity`, 'set', velocity).then(_res => {
@@ -435,7 +437,7 @@ class Stacktrader extends Component {
         this.client.get(`decs.components.${this.state.shard}.${entity}.radar_receiver`).then(radar_receiver => {
           this.setState({ radar_receiver })
         })
-        this.setupRadarDemo()
+        // this.setupRadarDemo()
         setTimeout(() => this.setupRadarContacts(entity), 500)
       })
       this.client.get(`decs.components.${this.state.shard}.${entity}.target`).then(target => {
@@ -486,6 +488,7 @@ class Stacktrader extends Component {
     })
   }
 
+  // Demo functions begin
   setupRadarDemo() {
     /**
      * Color guide:
@@ -499,7 +502,7 @@ class Stacktrader extends Component {
     this.setupAsteroid("donut_asteroid", "Donut Asteroid", 1, -8, 0, "#f86c6b", "tasty");
     this.setupAsteroid("kubernetes_asteroid", "Kubernetes Asteroid", 2, 2, 3, "#ffc107", "critical");
     this.setupEntity("friendly_spaceship", "Friendly Spaceship", 10, 9, 0, "#4dbd74");
-    this.setupEntity("enemy_spaceship", "Enemy Spaceship", 7, 10, 0, "#f86c6b");
+    this.setupEntity("other_player_spaceship", "USS Bob", 7, 10, 0, "#f86c6b");
     this.setupEntity("starbase_alpha", "Starbase Alpha", 10, 10, 0, "#ffc107");
     this.setupEntity("unknown_spaceship", "Unknown Spaceship", 20, 20, 0, "#ffc107");
   }

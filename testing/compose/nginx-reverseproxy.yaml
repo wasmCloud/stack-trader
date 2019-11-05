@@ -1,0 +1,192 @@
+# Copyright 2015-2018 Capital One Services, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: "3"
+
+services:
+  ui:
+    image: "stacktrader/ui"
+    expose:
+      - "9090"
+    ports:
+      - "9090:9090"
+    environment:
+      - "RESGATE_HOST=http://resgate:8080"
+    depends_on:
+      - resgate
+  nats:
+    image: "nats:2.0.0"
+    expose:
+      - "4222"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+  redis:
+    image: "redis:latest"
+    expose:
+      - "6379"
+    ports:
+      - "6380:6379"
+  resgate:
+    image: "resgateio/resgate"
+    expose:
+      - "8080"
+    ports:
+      - "8080:8080"
+    command: "--nats nats://nats:4222 --debug"
+    links:
+      - nats
+    depends_on:
+      - nats
+  gameloop:
+    image: "decscloud/game_loop"
+    expose:
+      - "9001"
+    ports:
+      - "9001:9001"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "TIMER_INTERVAL_FPS=10" # 100ms delay between ticks
+      - "PORT=9001"
+      - "RUST_LOG=warn,cranelift_wasm=warn" # Invoking a wasm tick 10x/s gets chatty, keep regular logging off
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+  system_mgr:
+    image: "decscloud/system_mgr"
+    expose:
+      - "9002"
+    ports:
+      - "9002:9002"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "PORT=9002"
+      - "TIMER_INTERVAL_FPS=1" # System mgr emits discovery ping every 200 ticks
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=get.decs.system.*,get.decs.systems,access.decs.system.*,access.decs.systems,decs.system.registry.replies,decs.*.gameloop"
+  shard_mgr:
+    image: "decscloud/shard_mgr"
+    expose:
+      - "9003"
+    ports:
+      - "9003:9003"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "PORT=9003"
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=get.decs.shard.*,get.decs.shards,access.decs.shard.*,access.decs.shards,call.decs.shard.*.*"
+  component_mgr:
+    image: "decscloud/component_mgr"
+    expose:
+      - "9004"
+    ports:
+      - "9004:9004"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "PORT=9004"
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=get.decs.components.*.*.>,call.decs.components.*.*.>,access.decs.components.>"
+  physics:
+    image: "stacktrader/physics"
+    expose:
+      - "9005"
+    ports:
+      - "9005:9005"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=decs.frames.*.physics,decs.system.registry"
+  radar:
+    image: stacktrader/radar
+    expose:
+      - "9006"
+    ports:
+      - "9006:9006"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=decs.frames.*.radar,event.decs.components.*.*.position.change, decs.system.registry"
+  nav:
+    image: stacktrader/navigation
+    expose:
+      - "9007"
+    ports:
+      - "9007:9007"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=decs.frames.*.navigation, decs.system.registry"
+  mining:
+    image: stacktrader/mining
+    expose:
+      - "9008"
+    ports:
+      - "9008:9008"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=decs.frames.*.mining, decs.system.registry"

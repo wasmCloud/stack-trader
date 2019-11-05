@@ -2,7 +2,6 @@ extern crate waxosuit_guest as guest;
 
 use decs::gateway::*;
 use guest::prelude::*;
-use serde::{Deserialize, Serialize};
 use stacktrader_types as trader;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -162,7 +161,9 @@ fn radar_updates(
                     ctx.unwrap().log(&format!("Removing: {}", ent_id));
                     POSITIONS.write().unwrap().remove(ent_id);
                     Some(RadarContactDelta::Remove(rid))
-                } else if within_radius(current_position, pos, radar_receiver.radius) {
+                } else if within_radius(current_position, pos, radar_receiver.radius)
+                    || ent_id == "starbase_0"
+                {
                     let vector_to = current_position.vector_to(pos);
                     let transponder = transponder_for_entity(shard, &ent_id.clone());
                     Some(RadarContactDelta::Change(
@@ -182,6 +183,17 @@ fn radar_updates(
             } else if entity_id != ent_id
                 && within_radius(current_position, &pos, radar_receiver.radius)
             {
+                let vector_to = current_position.vector_to(pos);
+                let transponder = transponder_for_entity(shard, &ent_id.clone());
+                Some(RadarContactDelta::Add(RadarContact {
+                    entity_id: ent_id.clone().to_string(),
+                    distance: vector_to.mag,
+                    distance_xy: vector_to.distance_xy,
+                    azimuth: vector_to.azimuth,
+                    elevation: vector_to.elevation,
+                    transponder,
+                }))
+            } else if ent_id == "starbase_0" {
                 let vector_to = current_position.vector_to(pos);
                 let transponder = transponder_for_entity(shard, &ent_id.clone());
                 Some(RadarContactDelta::Add(RadarContact {
@@ -222,23 +234,6 @@ pub(crate) fn handle_entity_position_change(
         .insert(subject[4].to_string(), position);
     Ok(vec![])
 }
-
-// /// Receives messages on the subject `event.decs.components.{shard}.{entity}.position.change`
-// /// Stores entity position in-memory in the POSITIONS HashMap
-// /// The cache is used later to discover nearby radar_contacts
-// pub(crate) fn handle_entity_position_change(
-//     _ctx: &CapabilitiesContext,
-//     msg: messaging::BrokerMessage,
-// ) -> CallResult {
-//     let subject: Vec<&str> = msg.subject.split('.').collect();
-//     let position_value: serde_json::Value = serde_json::from_slice(&msg.body)?;
-//     let position: Position = serde_json::from_value::<Position>(position_value["values"].clone())?;
-//     POSITIONS
-//         .write()
-//         .unwrap()
-//         .insert(subject[4].to_string(), position);
-//     Ok(vec![])
-// }
 
 /// Helper function to clean up determining if an entity is within a radius
 fn within_radius(entity: &Position, target: &Position, radius: f64) -> bool {

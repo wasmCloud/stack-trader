@@ -74,6 +74,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         "#
     );
 
+    // Create shard
+    client.publish(
+        &format!("call.decs.shard.{}.set", params.shard_name),
+        &serde_json::to_vec(&serde_json::to_value(serde_json::json!({"params": {
+            "current": 0,
+            "name": params.shard_name,
+            "capacity": params.shard_capacity
+        }}))?)?,
+        None,
+    )?;
+
     for x in 0..params.asteroids {
         create_asteroid(&client, &params, x)?;
     }
@@ -96,21 +107,21 @@ fn create_starbase(nats: &Client, params: &UniverseParameters) -> Result<(), Box
             "decs.components.{}.{}.position",
             params.shard_name, entity_id
         ),
-        json!({
+        json!({"params": {
             "x": 0.0,
             "y": 0.0,
             "z": 0.0
-        }),
+        }}),
     )?;
 
-    let transponder = json!({"object_type": "starbase",
+    let transponder = json!({"params": {"object_type": "starbase",
                         "display_name": "Starbase Alpha".to_string(),
-                        "color": params.starbase_color});
+                        "color": params.starbase_color}});
 
     create_component(
         nats,
         &format!(
-            "decs.components.{}.{}.radar_transponder",
+            "decs.components.{}.{}.transponder",
             params.shard_name, entity_id
         ),
         transponder,
@@ -129,7 +140,7 @@ fn create_asteroid(
     create_component(
         nats,
         &format!(
-            "decs.components.{}.{}.radar_transponder",
+            "decs.components.{}.{}.transponder",
             params.shard_name, entity_id
         ),
         gen_transponder(params),
@@ -161,7 +172,6 @@ fn create_component(
     let subject = format!("call.{}.set", rid);
 
     nats.publish(&subject, &serde_json::to_vec(&raw)?, None)?;
-    //println!("{} - {}", subject, raw);
 
     Ok(())
 }
@@ -170,9 +180,9 @@ fn gen_transponder(params: &UniverseParameters) -> serde_json::Value {
     let mut rng = rand::thread_rng();
     let idx = rng.gen_range(0, params.asteroid_adjs.len());
 
-    json!({"object_type": "asteroid",
+    json!({"params": {"object_type": "asteroid",
         "display_name": format!("{} Asteroid", params.asteroid_adjs[idx]),
-        "color": params.asteroid_colors[idx]})
+        "color": params.asteroid_colors[idx]}})
 }
 
 fn gen_position(params: &UniverseParameters) -> serde_json::Value {
@@ -182,11 +192,11 @@ fn gen_position(params: &UniverseParameters) -> serde_json::Value {
     let y: f64 = rng.gen_range(params.from.y, params.to.y) as _;
     let z: f64 = rng.gen_range(params.from.z, params.to.z) as _;
 
-    json!({
+    json!({"params": {
         "x": x,
         "y": y,
         "z": z
-    })
+    }})
 }
 
 fn gen_resource(params: &UniverseParameters) -> serde_json::Value {
@@ -201,8 +211,8 @@ fn gen_resource(params: &UniverseParameters) -> serde_json::Value {
         "spendy"
     };
     let qty = rng.gen_range(1, params.max_stack_qty);
-    json!({
+    json!({"params": {
         "stack_type": stack_type,
         "qty": qty
-    })
+    }})
 }
