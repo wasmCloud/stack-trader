@@ -1,0 +1,27 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: dashboard
+  name: dashboard
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: dashboard
+    spec:
+      containers:
+      - image: decscloud/dashboard
+        name: dashboard
+        ports:
+        - containerPort: 9090
+        resources: {}
+      - env:
+        - name: RESGATE_HOST
+          value: http://resgate:8080        
+      restartPolicy: Always
+status: {}
