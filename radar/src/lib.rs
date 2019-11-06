@@ -22,6 +22,8 @@ Radar system's responsibility is to take the metadata about the detected objects
 
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate serde_derive;
 extern crate decscloud_common as decs;
 extern crate waxosuit_guest as guest;
 

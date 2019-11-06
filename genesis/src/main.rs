@@ -101,7 +101,7 @@ fn create_shard(nats: &Client, params: &UniverseParameters) -> Result<(), Box<dy
             "name": params.shard_name,
             "capacity": params.shard_capacity,
             "current": 0
-        })
+        }),
     )?;
     set_shard_metadata(nats, params)?;
 
@@ -121,7 +121,7 @@ fn set_shard_metadata(nats: &Client, params: &UniverseParameters) -> Result<(), 
             "max_x": params.to.x,
             "max_y": params.to.y,
             "max_z": params.to.z
-        })
+        }),
     )?;
 
     Ok(())
@@ -149,7 +149,7 @@ fn create_starbase(nats: &Client, params: &UniverseParameters) -> Result<(), Box
     create_component(
         nats,
         &format!(
-            "decs.components.{}.{}.radar_transponder",
+            "decs.components.{}.{}.transponder",
             params.shard_name, entity_id
         ),
         transponder,
@@ -168,7 +168,7 @@ fn create_asteroid(
     create_component(
         nats,
         &format!(
-            "decs.components.{}.{}.radar_transponder",
+            "decs.components.{}.{}.transponder",
             params.shard_name, entity_id
         ),
         gen_transponder(params),
@@ -199,8 +199,9 @@ fn create_component(
 ) -> Result<(), Box<dyn Error>> {
     let subject = format!("call.{}.set", rid);
 
-    nats.publish(&subject, &serde_json::to_vec(&raw)?, None)?;
-    //println!("{} - {}", subject, raw);
+    let payload = json!({ "params": raw });
+
+    nats.publish(&subject, &serde_json::to_vec(&payload)?, None)?;
 
     Ok(())
 }

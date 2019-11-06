@@ -55,6 +55,17 @@ impl Position {
     pub fn vector_to(self, target: &Position) -> TargetVector {
         let ab = (target.x - self.x, target.y - self.y, target.z - self.z);
         let d = self.distance_to_3d(&target);
+        if d == 0.0 {
+            return TargetVector {
+                mag: 0,
+                ux: 0.0,
+                uy: 0.0,
+                uz: 0.0,
+                distance_xy: 0,
+                azimuth: 0.0,
+                elevation: 0.0,
+            };
+        }
         let azimuth = ab.1.atan2(ab.0) * 180.0 / std::f64::consts::PI;
         let elevation = (ab.2 / d).acos() * 180.0 / std::f64::consts::PI;
         let distance_xy = self.distance_to_2d(&target).round() as u32;

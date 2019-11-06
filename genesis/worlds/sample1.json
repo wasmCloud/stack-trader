@@ -1,17 +1,29 @@
 {
     "from": {
-        "x": -1000,
-        "y": -1000,
-        "z": -1000
+        "x": -100,
+        "y": -100,
+        "z": -100
     },
     "to": {
-        "x": 1000,
-        "y": 1000,
-        "z": 1000
+        "x": 100,
+        "y": 100,
+        "z": 100
     },
-    "asteroid_adjs": ["Large", "Medium", "Small", "Dark", "Bright"],
-    "asteroid_colors": ["#c0c0c0", "#c0c0c0", "#c0c0c0", "#c0c0c0", "#c0c0c0"],
-    "starbase_color": "#eff7de",
+    "asteroid_adjs": [
+        "Large",
+        "Medium",
+        "Small",
+        "Dark",
+        "Bright"
+    ],
+    "asteroid_colors": [
+        "#f79256",
+        "#fbd1a2",
+        "#7dcfb6",
+        "#1d4e89",
+        "#00b2ca"
+    ],
+    "starbase_color": "#d741a7",
     "asteroids": 500,
     "shard_name": "mainworld",
     "shard_capacity": 10000,
