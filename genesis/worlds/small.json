@@ -25,7 +25,7 @@
     ],
     "starbase_color": "#eff7de",
     "asteroids": 10,
-    "shard_name": "mainworld",
+    "shard_name": "smallworld",
     "shard_capacity": 100,
     "max_stack_qty": 20,
     "distribution": {

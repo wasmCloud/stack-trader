@@ -19,10 +19,6 @@ struct Opt {
     /// Output file
     #[structopt(short, long, parse(from_os_str))]
     input: PathBuf,
-
-    /// Destroy flag
-    #[structopt(short, long)]
-    purge: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -101,11 +97,11 @@ fn create_shard(nats: &Client, params: &UniverseParameters) -> Result<(), Box<dy
     create_component(
         nats,
         &rid,
-        json!({"params": {
+        json!({
             "name": params.shard_name,
             "capacity": params.shard_capacity,
             "current": 0
-        }}),
+        }),
     )?;
     set_shard_metadata(nats, params)?;
 
@@ -118,14 +114,14 @@ fn set_shard_metadata(nats: &Client, params: &UniverseParameters) -> Result<(), 
     create_component(
         nats,
         &rid,
-        json!({"params": {
+        json!({
             "min_x": params.from.x,
             "min_y": params.from.y,
             "min_z": params.from.z,
             "max_x": params.to.x,
             "max_y": params.to.y,
             "max_z": params.to.z
-        }}),
+        }),
     )?;
 
     Ok(())
@@ -139,16 +135,16 @@ fn create_starbase(nats: &Client, params: &UniverseParameters) -> Result<(), Box
             "decs.components.{}.{}.position",
             params.shard_name, entity_id
         ),
-        json!({"params": {
+        json!({
             "x": 0.0,
             "y": 0.0,
             "z": 0.0
-        }}),
+        }),
     )?;
 
-    let transponder = json!({"params": {"object_type": "starbase",
+    let transponder = json!({"object_type": "starbase",
                         "display_name": "Starbase Alpha".to_string(),
-                        "color": params.starbase_color}});
+                        "color": params.starbase_color});
 
     create_component(
         nats,
@@ -203,7 +199,9 @@ fn create_component(
 ) -> Result<(), Box<dyn Error>> {
     let subject = format!("call.{}.set", rid);
 
-    nats.publish(&subject, &serde_json::to_vec(&raw)?, None)?;
+    let payload = json!({ "params": raw });
+
+    nats.publish(&subject, &serde_json::to_vec(&payload)?, None)?;
 
     Ok(())
 }
@@ -212,9 +210,9 @@ fn gen_transponder(params: &UniverseParameters) -> serde_json::Value {
     let mut rng = rand::thread_rng();
     let idx = rng.gen_range(0, params.asteroid_adjs.len());
 
-    json!({"params": {"object_type": "asteroid",
+    json!({"object_type": "asteroid",
         "display_name": format!("{} Asteroid", params.asteroid_adjs[idx]),
-        "color": params.asteroid_colors[idx]}})
+        "color": params.asteroid_colors[idx]})
 }
 
 fn gen_position(params: &UniverseParameters) -> serde_json::Value {
@@ -224,11 +222,11 @@ fn gen_position(params: &UniverseParameters) -> serde_json::Value {
     let y: f64 = rng.gen_range(params.from.y, params.to.y) as _;
     let z: f64 = rng.gen_range(params.from.z, params.to.z) as _;
 
-    json!({"params": {
+    json!({
         "x": x,
         "y": y,
         "z": z
-    }})
+    })
 }
 
 fn gen_resource(params: &UniverseParameters) -> serde_json::Value {
@@ -243,8 +241,8 @@ fn gen_resource(params: &UniverseParameters) -> serde_json::Value {
         "spendy"
     };
     let qty = rng.gen_range(1, params.max_stack_qty);
-    json!({"params": {
+    json!({
         "stack_type": stack_type,
         "qty": qty
-    }})
+    })
 }
