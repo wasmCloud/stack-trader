@@ -16,11 +16,20 @@
 extern crate serde_json;
 extern crate decscloud_common as decs;
 extern crate waxosuit_guest as guest;
+#[macro_use]
+extern crate lazy_static;
 
 use decs::systemmgr::*;
 use guest::prelude::*;
 use stacktrader_types as trader;
+use std::collections::HashMap;
+use std::sync::RwLock;
 use trader::components::*;
+
+lazy_static! {
+    static ref UNIVERSE_METADATA: RwLock<HashMap<String, UniverseMetadata>> =
+        RwLock::new(HashMap::new());
+}
 
 call_handler!(handle_call);
 
@@ -114,18 +123,31 @@ fn handle_frame(
         }
 
         if let Ok(new_position) = new_position(frame.elapsed_ms.into(), &position, &velocity) {
-            let publish_subject = &format!(
-                "call.decs.components.{}.{}.{}.set",
-                frame.shard, frame.entity_id, POSITION
-            );
-            let payload = json!({ "params": new_position });
-            if ctx
-                .msg()
-                .publish(publish_subject, None, &serde_json::to_vec(&payload)?)
-                .is_err()
-            {
-                return Err("Error publishing message".into());
-            };
+            // If new position is outside the edge of universe, do not set that position, instead set v mag to 0
+            if out_of_bounds(&new_position, &get_metadata(ctx, &frame.shard)) {
+                let ps = format!(
+                    "call.decs.components.{}.{}.{}.set",
+                    frame.shard, frame.entity_id, VELOCITY
+                );
+                let new_v = Velocity { mag: 0, ..velocity };
+                let payload = json!({ "params": new_v });
+                ctx.msg()
+                    .publish(&ps, None, &serde_json::to_vec(&payload)?)?
+            } else {
+                // New position is within the shard's universe boundaries
+                let publish_subject = &format!(
+                    "call.decs.components.{}.{}.{}.set",
+                    frame.shard, frame.entity_id, POSITION
+                );
+                let payload = json!({ "params": new_position });
+                if ctx
+                    .msg()
+                    .publish(publish_subject, None, &serde_json::to_vec(&payload)?)
+                    .is_err()
+                {
+                    return Err("Error publishing message".into());
+                };
+            }
         };
     } else {
         return Err(format!(
@@ -145,6 +167,51 @@ fn new_position(elapsed: u64, pos: &Position, vel: &Velocity) -> Result<Position
         y: pos.y + vel.uy * multiplier,
         z: pos.z + vel.uz * multiplier,
     })
+}
+
+fn out_of_bounds(pos: &Position, md: &UniverseMetadata) -> bool {
+    (pos.x <= md.min_x)
+        || (pos.y <= md.min_y)
+        || (pos.z <= md.min_z)
+        || (pos.x >= md.max_x)
+        || (pos.y >= md.max_y)
+        || (pos.z >= md.max_z)
+}
+
+// Retrieve the universe boundaries from the cache. If it's not in the cache, attempt
+// to query it from the KV store. If it's not in there, return the default universe boundaries.
+fn get_metadata(ctx: &CapabilitiesContext, shard: &str) -> UniverseMetadata {
+    let ubounds = {
+        let md = UNIVERSE_METADATA.read().unwrap();
+        match md.get(shard) {
+            Some(ref md) => Some((*md).clone()),
+            None => None,
+        }
+    };
+    match ubounds {
+        Some(ub) => ub,
+        None => match load_universe_md(ctx, shard) {
+            Ok(u) => {
+                let mut um = UNIVERSE_METADATA.write().unwrap();
+                um.insert(shard.to_string(), u.clone());
+                u
+            }
+            Err(_) => UniverseMetadata::default(),
+        },
+    }
+}
+
+fn load_universe_md(ctx: &CapabilitiesContext, shard: &str) -> Result<UniverseMetadata> {
+    let key = format!("decs:components:{}:universe:metadata", shard);
+    let umd = {
+        let raw = ctx.kv().get(&key)?;
+        match raw {
+            Some(r) => serde_json::from_str(&r)?,
+            None => UniverseMetadata::default(),
+        }
+    };
+
+    Ok(umd)
 }
 
 #[cfg(test)]

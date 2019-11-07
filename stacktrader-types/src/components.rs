@@ -4,7 +4,7 @@ const MS_PER_HOUR: f64 = 3_600_000.0;
 
 /// Represents the metadata and parameters for a given universe (the physical space 
 /// contained within a shard)
-#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct UniverseMetadata {
     pub min_x: f64,
     pub min_y: f64,
@@ -12,6 +12,19 @@ pub struct UniverseMetadata {
     pub max_x: f64,
     pub max_y: f64,
     pub max_z: f64
+}
+
+impl Default for UniverseMetadata {
+    fn default() -> Self {
+        UniverseMetadata {
+            min_x: -100.0,
+            min_y: -100.0,
+            min_z: -100.0,
+            max_x: 100.0,
+            max_y: 100.0,
+            max_z: 100.0
+        }
+    }
 }
 
 /// Represents a position in 3-dimensional space, assumed unit is Kilometers
