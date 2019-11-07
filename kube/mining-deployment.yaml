@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: mining
+    game: stacktrader
+  name: mining
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: mining
+        game: stacktrader
+    spec:
+      containers:
+        - env:
+            - name: PORT
+              value: "9000"
+            - name: RUST_LOG
+              value: warn
+            - name: NATS_URL
+              value: nats://nats:4222
+            - name: REDIS_URL
+              value: redis://redis:6379
+            - name: NATS_SUBSCRIPTION
+              value: decs.frames.*.mining, decs.system.registry
+          image: stacktrader/mining
+          name: mining
+          ports:
+            - containerPort: 9000
+          resources: {}
+      restartPolicy: Always
+status: {}
