@@ -6,4 +6,5 @@ RUN cargo build --release
 
 FROM frolvlad/alpine-glibc
 COPY --from=build /wrk/target/release/genesis /genesis
+COPY --from=build /wrk/worlds /worlds 
 CMD ["sh"]
