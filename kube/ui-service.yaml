@@ -7,9 +7,10 @@ metadata:
   name: ui
 spec:
   ports:
-    - name: "9090"
-      port: 9090
+    - port: 9090
       targetPort: 9090
+      protocol: TCP
+      name: http
   selector:
     app: ui
 status:

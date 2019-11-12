@@ -25,7 +25,7 @@ spec:
           image: stacktrader/ui
           name: ui
           ports:
-            - containerPort: 9000
+            - containerPort: 9090
           resources: {}
       restartPolicy: Always
 status: {}
