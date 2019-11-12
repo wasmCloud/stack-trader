@@ -20,8 +20,8 @@ class Stacktrader extends Component {
   constructor(props) {
     super(props);
 
-    // this.client = new ResClient('ws://localhost:8080') // TODO: Remove for nginx-rp stuff
-    this.client = new ResClient('/resgate')
+    this.client = new ResClient('ws://localhost:8080') // TODO: Remove for nginx-rp stuff
+    // this.client = new ResClient('/resgate')
 
     this.state = {
       dropdownOpen: new Array(30).fill(false),
@@ -108,11 +108,13 @@ class Stacktrader extends Component {
     let azimuth = contact.azimuth * Math.PI / 180
     let ux = Math.cos(azimuth)
     let uy = Math.sin(azimuth)
-    let uz = Number.parseFloat(((contact.elevation - 90) / - 90).toPrecision(1))
+    let uz = Number.parseFloat(Math.cos(contact.elevation * Math.PI / 180))
 
-    //TODO: Issue here, ux/uy are not to scale with uz to correctly navigate a player to a target at a different elevation
-    // Thinking we should take the distance_xy and the distance to the target to figure out the amt of z-distance we got
-    // Then we can take the ratio of uz to distance_z, and then modify the ux/uy components by the ratio between it and distance_xy
+    // Scale UX and UY components to each other (maxing one out at 1.0) and then to the ratio of xy distance vs total distance
+    let componentRatio = Math.abs(ux) > Math.abs(uy) ? 1.0 / Math.abs(ux) : 1.0 / Math.abs(uy);
+    let distanceRatio = contact.distance_xy / contact.distance
+    ux = ux * componentRatio * distanceRatio
+    uy = uy * componentRatio * distanceRatio
 
     // Setting magnitude to be at least 500, to start moving the player there
     let mag = this.state.velocity.mag === 0 ? 500 : this.state.velocity.mag
@@ -161,9 +163,7 @@ class Stacktrader extends Component {
    */
   sellItem = (item) => {
     this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.sell_list`, 'new', item).then(_res => {
-      this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.inventory`, 'delete', { rid: item._rid }).then(_del => {
-        // get sell list, onremove get wallet if no exist
-      })
+      this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.inventory`, 'delete', { rid: item._rid })
       this.client.get(`decs.components.${this.state.shard}.${this.state.entity_id}.sell_list`).then(sell_list => {
         sell_list.on('remove', () => {
           if (!this.state.wallet) {
@@ -314,7 +314,7 @@ class Stacktrader extends Component {
                       Elevation:
                       <Row>
                         <Col>
-                          <input type="range" min={-1} max={1} value={this.state.velocity.uz} step={0.1} class="slider" id="velocityDirection"
+                          <input type="range" min={-1} max={1} value={this.state.velocity.uz.toPrecision(1)} step={0.1} class="slider" id="velocityDirection"
                             onInput={(e) => {
                               let velocity = this.state.velocity
                               velocity.uz = Number.parseFloat(e.target.value)
@@ -341,8 +341,7 @@ class Stacktrader extends Component {
                 Inventory
               </CardHeader>
               <CardBody>
-                {/* TODO: Calculate starbase range */}
-                <Inventory inventory={Array.from(this.state.inventory)} wallet={this.state.wallet} isSelling={this.state.isSelling} withinStarbaseRange={true} sellItem={this.sellItem} />
+                <Inventory inventory={Array.from(this.state.inventory)} wallet={this.state.wallet} isSelling={this.state.isSelling} withinStarbaseRange={this.withinStarbaseRange} sellItem={this.sellItem} />
                 <br />
                 {this.state.extractor &&
                   <Progress animated className="mb-3"

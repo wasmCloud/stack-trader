@@ -66,19 +66,19 @@ class Inventory extends Component {
                 </Row>
                 {tastyCount > 0 && <Row style={rowStyle}>
                     {`${tastyCount} ${StackTypes.TASTY} stacks`}
-                    {this.props.withinStarbaseRange ?
+                    {this.props.withinStarbaseRange() ?
                         <i onClick={() => this.sellStack(StackTypes.TASTY)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `${this.props.isSelling ? 'green' : 'black'}` }}></i>
                         : noInteractIcon}
                 </Row>}
                 {spendyCount > 0 && <Row style={rowStyle}>
                     {`${spendyCount} ${StackTypes.SPENDY} stacks`}
-                    {this.props.withinStarbaseRange ?
+                    {this.props.withinStarbaseRange() ?
                         <i onClick={() => this.sellStack(StackTypes.SPENDY)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `${this.props.isSelling ? 'green' : 'black'}` }}></i>
                         : noInteractIcon}
                 </Row>}
                 {criticalCount > 0 && <Row style={rowStyle}>
                     {`${criticalCount} ${StackTypes.CRITICAL} stacks`}
-                    {this.props.withinStarbaseRange ?
+                    {this.props.withinStarbaseRange() ?
                         <i onClick={() => this.sellStack(StackTypes.CRITICAL)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `${this.props.isSelling ? 'green' : 'black'}` }}></i>
                         : noInteractIcon}
                 </Row>}
