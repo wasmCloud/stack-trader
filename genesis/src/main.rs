@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     f.read_to_end(&mut buffer)?;
     let params: UniverseParameters = serde_json::from_slice(&buffer)?;
-    let natsurl = env::var("NATS")?;
+    let natsurl = env::var("NATS_URL")?;
 
     let opts = ClientOptions::builder()
         .cluster_uris(vec![natsurl.into()])
