@@ -9,6 +9,7 @@ import {
   Table,
   Button,
 } from 'reactstrap';
+import { Redirect } from 'react-router-dom';
 import Radar from './Radar'
 import Inventory from './Inventory'
 
@@ -19,8 +20,6 @@ class Stacktrader extends Component {
 
   constructor(props) {
     super(props);
-    console.log('props, look for any info')
-    console.dir(props)
 
     this.client = new ResClient('/resgate')
 
@@ -33,9 +32,9 @@ class Stacktrader extends Component {
       /**
        * Player default components
        */
-      entity_id: "",
-      shard: "",
-      position: { x: -25.0, y: 50.0, z: 20.0 },
+      entity_id: this.props.location.username ? this.props.location.username : "",
+      shard: this.props.location.shard ? this.props.location.shard : "",
+      position: { x: 0.0, y: 0.0, z: 0.0 },
       velocity: { mag: 0, ux: 0.0, uy: 1.0, uz: 0.0 },
       contacts: [],
       initial_distance: 0,
@@ -52,14 +51,15 @@ class Stacktrader extends Component {
   }
 
   componentDidMount() {
-    let entity_id = "Player1"
-    let shard = "mainworld"
-    // See if entity exists, and if it does then load it into state.
-    this.client.get(`decs.components.${shard}.${entity_id}.position`).then(_position => {
+    let entity_id = this.state.entity_id
+    let shard = this.state.shard
+    if (this.props.location.from === "login") {
       this.loadPlayer(entity_id, shard)
-    }).catch(_err => {
+    } else if (this.props.location.from === "register") {
       this.initializePlayer(entity_id, shard)
-    })
+    } else {
+      this.setState({ entity_id: "" })
+    }
   }
 
   /**
@@ -113,7 +113,7 @@ class Stacktrader extends Component {
 
     // Scale UX and UY components to each other (maxing one out at 1.0) and then to the ratio of xy distance vs total distance
     let componentRatio = Math.abs(ux) > Math.abs(uy) ? 1.0 / Math.abs(ux) : 1.0 / Math.abs(uy);
-    let distanceRatio = contact.distance_xy / contact.distance
+    let distanceRatio = (contact.distance_xy * contact.distance_xy) / (contact.distance * contact.distance)
     ux = ux * componentRatio * distanceRatio
     uy = uy * componentRatio * distanceRatio
 
@@ -139,7 +139,7 @@ class Stacktrader extends Component {
       }
       this.setState({ mining_resource_eta_ms: (mining_resource.qty / this.state.fps) * 1000, recently_mined: null })
       this.client.get(`${target}.mining_lock`).then(_res => {
-        console.log("Resource is already being mined")//TODO: Display error message here. 
+        alert("Resource is already being mined")
       }).catch(_err => {
         this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.extractor`, 'set', extractor).then(_res => {
           this.client.call(`${target}.mining_lock`, 'set', { extractor: `decs.components.${this.state.shard}.${this.state.entity_id}.extractor` })
@@ -231,10 +231,19 @@ class Stacktrader extends Component {
     return azimuth
   }
 
+  redirectToLogin = () => {
+    if (this.state.entity_id === "") {
+      return <Redirect to={{
+        pathname: `/login`
+      }} from='/stacktrader' />
+    }
+  }
+
   render() {
 
     return (
       <div className="animated fadeIn">
+        {this.redirectToLogin()}
         <Row>
           <Col md="6">
             <Card className="card-accent-primary">
@@ -372,7 +381,7 @@ class Stacktrader extends Component {
                     <Row>
                       ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h/
                       ${Math.floor(this.state.target.eta_ms / 1000 / 60)}m/
-                      ${(this.state.target.eta_ms / 1000).toPrecision(3)}s`}
+                      ${(this.state.target.eta_ms / 1000).toPrecision(3) % 60}s`}
                     </Row>
                     <Progress animated className="mb-3"
                       color={this.state.target.eta_ms <= 0.0 && this.state.target.distance_km <= 5.0 ? "success" : "primary"}
@@ -456,7 +465,7 @@ class Stacktrader extends Component {
                                 if (this.withinAsteroidRange(contact)) {
                                   this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
                                 } else {
-                                  console.log("Not close enough to asteroid")
+                                  alert("Not close enough to asteroid to mine")
                                 }
                               }}>Mine</Button>
                             }
@@ -465,7 +474,7 @@ class Stacktrader extends Component {
                                 if (this.withinStarbaseRange()) {
                                   this.initiateTransaction()
                                 } else {
-                                  console.log("Not close enough to starbase")
+                                  alert("Not close enough to starbase to sell")
                                 }
                               }}>Sell</Button>
                             }
@@ -546,19 +555,32 @@ class Stacktrader extends Component {
   initializePlayer = (entity_id, shard) => {
     this.setState({ entity_id, shard })
     this.client.get('decs.shards').then(_shards => {
-      let position = this.state.position;
-      let velocity = this.state.velocity;
-      let radar_receiver = this.state.radar_receiver;
-
-      // Create velocity component
-      this.client.call(`decs.components.${shard}.${entity_id}.velocity`, 'set', velocity).then(_res => {
-        // Create position component
-        this.client.call(`decs.components.${shard}.${entity_id}.position`, 'set', position).then(_res => {
-          // Create radar_receiver component
-          this.client.call(`decs.components.${shard}.${entity_id}.radar_receiver`, 'set', radar_receiver).then(_res => {
-            this.loadPlayer(entity_id, shard)
+      this.client.get(`decs.components.${shard}.universe.metadata`).then(metadata => {
+        let velocity = this.state.velocity;
+        let radar_receiver = this.state.radar_receiver;
+        // Randomize starting position
+        let position = {
+          x: Math.floor(Math.random() * (metadata.max_x - metadata.min_x)) + metadata.min_x,
+          y: Math.floor(Math.random() * (metadata.max_y - metadata.min_y)) + metadata.min_y,
+          z: Math.floor(Math.random() * (metadata.max_z - metadata.min_z)) + metadata.min_z,
+        }
+        // Create velocity component
+        this.client.call(`decs.components.${shard}.${entity_id}.velocity`, 'set', velocity).then(_res => {
+          // Create position component
+          this.client.call(`decs.components.${shard}.${entity_id}.position`, 'set', position).then(_res => {
+            // Create radar_receiver component
+            this.client.call(`decs.components.${shard}.${entity_id}.radar_receiver`, 'set', radar_receiver).then(_res => {
+              this.loadPlayer(entity_id, shard)
+              // Create tranponder component so player can be visible to other players
+              this.client.call(`decs.components.${shard}.${entity_id}.transponder`, 'set', {
+                color: "#63c2de",
+                display_name: `${entity_id}'s spaceship`,
+                object_type: "ship"
+              })
+            })
           })
         })
+
       })
     }).catch(err => {
       console.log(err);
@@ -602,6 +624,7 @@ class Stacktrader extends Component {
     this.client.get(`decs.components.${this.state.shard}.${entity}.radar_contacts`).then(contacts => {
       contacts.on('add', this.onUpdate)
       contacts.on('remove', this.onUpdate)
+      contacts.on('change', this.onUpdate)
       this.setState({ contacts })
     }).catch(err => {
       setTimeout(() => this.setupRadarContacts(entity), 1000)

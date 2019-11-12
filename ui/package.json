@@ -32,6 +32,7 @@
     "classnames": "^2.2.6",
     "codemirror": "^5.47.0",
     "core-js": "^3.1.4",
+    "crypto-js": "^3.1.9-1",
     "enzyme": "^3.10.0",
     "enzyme-adapter-react-16": "^1.14.0",
     "flag-icon-css": "^3.3.0",

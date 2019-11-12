@@ -1,31 +1,93 @@
 import React, { Component } from 'react';
-import { Button, Card, CardBody, CardFooter, Col, Container, Form, Input, InputGroup, InputGroupAddon, InputGroupText, Row } from 'reactstrap';
+import { Button, Card, CardBody, Col, Container, Form, Input, InputGroup, InputGroupAddon, InputGroupText, Row } from 'reactstrap';
+import { Redirect } from 'react-router-dom';
+
+import ResClient from 'resclient';
+
+import CryptoJS from 'crypto-js'
+
+import Secret from '../../../secret/secret-key.json'
 
 class Register extends Component {
+
+  constructor(props) {
+    super(props)
+
+    this.state = {
+      username: "",
+      email: "",
+      password: "",
+      repeatPassword: "",
+      loggedIn: false
+    }
+  }
+
+  signup = (e) => {
+    e.preventDefault()
+    let client = new ResClient('/resgate')
+    if (this.state.username.includes(" ")) {
+      alert("Username cannot contain spaces")
+      return
+    }
+    if (this.state.password !== this.state.repeatPassword) {
+      alert("Passwords do not match")
+      return
+    }
+    if (this.state.username === "" || this.state.password === "" || this.state.email === "" || this.state.repeatPassword === "") {
+      alert("No fields can be left blank")
+      return
+    }
+    // Here need to ensure that we are not creating over a previous user, and then create the user
+    client.get(`decs.user.${this.state.username}`).then(_user => {
+      alert("Username already exists, try logging in instead")
+    }).catch(_err => {
+      let user = {
+        email: this.state.email,
+        pass: CryptoJS.AES.encrypt(this.state.password, Secret.secret).toString(),
+        id: this.state.username
+      }
+      client.call(`decs.users`, 'add', user).then(_res => {
+        this.setState({ loggedIn: true })
+      })
+    })
+  }
+
+  redirectToGame = () => {
+    if (this.state.loggedIn) {
+      return <Redirect to={{
+        pathname: `/stacktrader`,
+        username: this.state.username,
+        shard: "mainworld",
+        from: "register"
+      }} from='/register' />
+    }
+  }
+
   render() {
     return (
       <div className="app flex-row align-items-center">
+        {this.redirectToGame()}
         <Container>
           <Row className="justify-content-center">
             <Col md="9" lg="7" xl="6">
               <Card className="mx-4">
                 <CardBody className="p-4">
-                  <Form>
+                  <Form onSubmit={this.signup}>
                     <h1>Register</h1>
-                    <p className="text-muted">Create your account</p>
+                    <p className="text-muted">Keep in mind, your username may displayed on large TVs at the vendor booth. Please choose something appropriate for display.</p>
                     <InputGroup className="mb-3">
                       <InputGroupAddon addonType="prepend">
                         <InputGroupText>
                           <i className="icon-user"></i>
                         </InputGroupText>
                       </InputGroupAddon>
-                      <Input type="text" placeholder="Username" autoComplete="username" />
+                      <Input type="text" placeholder="Username" autoComplete="username" value={this.state.username} onChange={(e) => this.setState({ username: e.target.value })} />
                     </InputGroup>
                     <InputGroup className="mb-3">
                       <InputGroupAddon addonType="prepend">
                         <InputGroupText>@</InputGroupText>
                       </InputGroupAddon>
-                      <Input type="text" placeholder="Email" autoComplete="email" />
+                      <Input type="text" placeholder="Email" autoComplete="email" value={this.state.email} onChange={(e) => this.setState({ email: e.target.value })} />
                     </InputGroup>
                     <InputGroup className="mb-3">
                       <InputGroupAddon addonType="prepend">
@@ -33,7 +95,7 @@ class Register extends Component {
                           <i className="icon-lock"></i>
                         </InputGroupText>
                       </InputGroupAddon>
-                      <Input type="password" placeholder="Password" autoComplete="new-password" />
+                      <Input type="password" placeholder="Password" autoComplete="new-password" value={this.state.password} onChange={(e) => this.setState({ password: e.target.value })} />
                     </InputGroup>
                     <InputGroup className="mb-4">
                       <InputGroupAddon addonType="prepend">
@@ -41,21 +103,11 @@ class Register extends Component {
                           <i className="icon-lock"></i>
                         </InputGroupText>
                       </InputGroupAddon>
-                      <Input type="password" placeholder="Repeat password" autoComplete="new-password" />
+                      <Input type="password" placeholder="Repeat password" autoComplete="new-password" value={this.state.repeatPassword} onChange={(e) => this.setState({ repeatPassword: e.target.value })} />
                     </InputGroup>
-                    <Button color="success" block>Create Account</Button>
+                    <Button color="success" block onClick={this.signup}>Create Account</Button>
                   </Form>
                 </CardBody>
-                <CardFooter className="p-4">
-                  <Row>
-                    <Col xs="12" sm="6">
-                      <Button className="btn-facebook mb-1" block><span>facebook</span></Button>
-                    </Col>
-                    <Col xs="12" sm="6">
-                      <Button className="btn-twitter mb-1" block><span>twitter</span></Button>
-                    </Col>
-                  </Row>
-                </CardFooter>
               </Card>
             </Col>
           </Row>
