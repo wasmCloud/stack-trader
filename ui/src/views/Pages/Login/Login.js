@@ -2,9 +2,9 @@ import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, CardBody, CardGroup, Col, Container, Form, Input, InputGroup, InputGroupAddon, InputGroupText, Row } from 'reactstrap';
 import { Redirect } from 'react-router-dom';
-
+import { ToastContainer, toast } from 'react-toastify';
 import ResClient from 'resclient';
-
+import 'react-toastify/dist/ReactToastify.css';
 import CryptoJS from 'crypto-js'
 
 import Secret from '../../../secret/secret-key.json'
@@ -28,10 +28,10 @@ class Login extends Component {
       if (this.state.password === CryptoJS.AES.decrypt(user.pass, Secret.secret).toString(CryptoJS.enc.Utf8)) {
         this.setState({ loggedIn: true })
       } else {
-        alert("Incorrect username or password")
+        toast.error("Incorrect username or password")
       }
     }).catch(err => {
-      alert("Incorrect username or password")
+      toast.error("Incorrect username or password")
     })
   }
 
@@ -50,6 +50,7 @@ class Login extends Component {
     return (
       <div className="app flex-row align-items-center">
         {this.redirectToGame()}
+        <ToastContainer position="top-right" autoClose={5000} style={{ zIndex: 1999 }} />
         <Container>
           <Row className="justify-content-center">
             <Col md="8">

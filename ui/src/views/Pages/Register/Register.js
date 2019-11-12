@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
 import { Button, Card, CardBody, Col, Container, Form, Input, InputGroup, InputGroupAddon, InputGroupText, Row } from 'reactstrap';
 import { Redirect } from 'react-router-dom';
-
+import { ToastContainer, toast } from 'react-toastify';
 import ResClient from 'resclient';
-
+import 'react-toastify/dist/ReactToastify.css';
 import CryptoJS from 'crypto-js'
 
 import Secret from '../../../secret/secret-key.json'
@@ -26,20 +26,20 @@ class Register extends Component {
     e.preventDefault()
     let client = new ResClient('/resgate')
     if (this.state.username.includes(" ")) {
-      alert("Username cannot contain spaces")
+      toast.error("Username cannot contain spaces")
       return
     }
     if (this.state.password !== this.state.repeatPassword) {
-      alert("Passwords do not match")
+      toast.error("Passwords do not match")
       return
     }
     if (this.state.username === "" || this.state.password === "" || this.state.email === "" || this.state.repeatPassword === "") {
-      alert("No fields can be left blank")
+      toast.error("No fields can be left blank")
       return
     }
     // Here need to ensure that we are not creating over a previous user, and then create the user
     client.get(`decs.user.${this.state.username}`).then(_user => {
-      alert("Username already exists, try logging in instead")
+      toast.error("Username already exists, try logging in instead")
     }).catch(_err => {
       let user = {
         email: this.state.email,
@@ -67,6 +67,7 @@ class Register extends Component {
     return (
       <div className="app flex-row align-items-center">
         {this.redirectToGame()}
+        <ToastContainer position="top-right" autoClose={5000} style={{ zIndex: 1999 }} />
         <Container>
           <Row className="justify-content-center">
             <Col md="9" lg="7" xl="6">

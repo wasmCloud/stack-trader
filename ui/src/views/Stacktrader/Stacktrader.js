@@ -12,7 +12,8 @@ import {
 import { Redirect } from 'react-router-dom';
 import Radar from './Radar'
 import Inventory from './Inventory'
-
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import ResClient from 'resclient';
 
 class Stacktrader extends Component {
@@ -139,7 +140,7 @@ class Stacktrader extends Component {
       }
       this.setState({ mining_resource_eta_ms: (mining_resource.qty / this.state.fps) * 1000, recently_mined: null })
       this.client.get(`${target}.mining_lock`).then(_res => {
-        alert("Resource is already being mined")
+        toast.error("Resource is already being mined")
       }).catch(_err => {
         this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.extractor`, 'set', extractor).then(_res => {
           this.client.call(`${target}.mining_lock`, 'set', { extractor: `decs.components.${this.state.shard}.${this.state.entity_id}.extractor` })
@@ -244,6 +245,7 @@ class Stacktrader extends Component {
     return (
       <div className="animated fadeIn">
         {this.redirectToLogin()}
+        <ToastContainer position="top-right" autoClose={5000} style={{ zIndex: 1999 }} />
         <Row>
           <Col md="6">
             <Card className="card-accent-primary">
@@ -465,7 +467,7 @@ class Stacktrader extends Component {
                                 if (this.withinAsteroidRange(contact)) {
                                   this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
                                 } else {
-                                  alert("Not close enough to asteroid to mine")
+                                  toast.error("Not close enough to asteroid to mine")
                                 }
                               }}>Mine</Button>
                             }
@@ -474,7 +476,7 @@ class Stacktrader extends Component {
                                 if (this.withinStarbaseRange()) {
                                   this.initiateTransaction()
                                 } else {
-                                  alert("Not close enough to starbase to sell")
+                                  toast.error("Not close enough to starbase to sell")
                                 }
                               }}>Sell</Button>
                             }
