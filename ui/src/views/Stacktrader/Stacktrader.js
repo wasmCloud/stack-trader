@@ -10,7 +10,7 @@ import {
   Button,
 } from 'reactstrap';
 import Radar from './Radar'
-import Inventory, { StackTypes } from './Inventory'
+import Inventory from './Inventory'
 
 import ResClient from 'resclient';
 
@@ -19,23 +19,32 @@ class Stacktrader extends Component {
 
   constructor(props) {
     super(props);
+    console.log('props, look for any info')
+    console.dir(props)
 
     this.client = new ResClient('/resgate')
 
     this.state = {
       dropdownOpen: new Array(30).fill(false),
       /**
-       * Player components
+       * Game state
+       */
+      fps: 1,
+      /**
+       * Player default components
        */
       entity_id: "",
       shard: "",
-      position: { x: -50.0, y: 100.0, z: 30.0 },
+      position: { x: -25.0, y: 50.0, z: 20.0 },
       velocity: { mag: 0, ux: 0.0, uy: 1.0, uz: 0.0 },
       contacts: [],
+      initial_distance: 0,
       target: null,
       target_name: "",
       radar_receiver: { "radius": 25.0 },
       inventory: [],
+      wallet: null,
+      isSelling: false,
       extractor: null,
       mining_resource_eta_ms: 0,
       recently_mined: null
@@ -43,26 +52,14 @@ class Stacktrader extends Component {
   }
 
   componentDidMount() {
-    this.setupPlayer("Player1", "mainworld");
-  }
-
-  setupPlayer(entity_id, shard) {
-    this.setState({ entity_id })
-    this.setState({ shard })
-    this.initializePlayer();
-  }
-
-  /**
-   * Change handler for velocity change
-   */
-  handlePositionChange = (change) => {
-    let position = {
-      x: change.x ? change.x : this.state.position.x,
-      y: change.y ? change.y : this.state.position.y,
-      z: change.z ? change.z : this.state.position.z,
-    }
-    this.setState({ position })
-    this.onUpdate()
+    let entity_id = "Player1"
+    let shard = "mainworld"
+    // See if entity exists, and if it does then load it into state.
+    this.client.get(`decs.components.${shard}.${entity_id}.position`).then(_position => {
+      this.loadPlayer(entity_id, shard)
+    }).catch(_err => {
+      this.initializePlayer(entity_id, shard)
+    })
   }
 
   /**
@@ -86,16 +83,21 @@ class Stacktrader extends Component {
       this.setState({ target: null })
       return
     }
-    let target = {
+    let init_target = {
       "rid": `${rid}`,
       "eta_ms": 999999.9,
       "distance_km": 9990.0
     }
-    this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.target`, 'set', target).then(_res => {
+    this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.target`, 'set', init_target).then(_res => {
       this.client.get(`decs.components.${this.state.shard}.${this.state.entity_id}.target`).then(target => {
-        this.setState({ target })
+        this.setState({ initial_distance: null, target })
         this.getNameForRid(target.rid)
-        target.on('change', this.onUpdate)
+        target.on('change', (change) => {
+          if (!this.state.initial_distance && change.distance_km < 9990.0) {
+            this.setState({ initial_distance: change.distance_km })
+          }
+          this.onUpdate()
+        })
       })
     })
   }
@@ -107,9 +109,13 @@ class Stacktrader extends Component {
     let azimuth = contact.azimuth * Math.PI / 180
     let ux = Math.cos(azimuth)
     let uy = Math.sin(azimuth)
-    let uz = Number.parseFloat(((contact.elevation - 90) / - 90).toPrecision(1))
+    let uz = Number.parseFloat(Math.cos(contact.elevation * Math.PI / 180))
 
-    //TODO: Issue here, ux/uy are not to scale with uz to correctly navigate a player to a target at a different elevation
+    // Scale UX and UY components to each other (maxing one out at 1.0) and then to the ratio of xy distance vs total distance
+    let componentRatio = Math.abs(ux) > Math.abs(uy) ? 1.0 / Math.abs(ux) : 1.0 / Math.abs(uy);
+    let distanceRatio = contact.distance_xy / contact.distance
+    ux = ux * componentRatio * distanceRatio
+    uy = uy * componentRatio * distanceRatio
 
     // Setting magnitude to be at least 500, to start moving the player there
     let mag = this.state.velocity.mag === 0 ? 500 : this.state.velocity.mag
@@ -120,15 +126,18 @@ class Stacktrader extends Component {
     })
   }
 
+  /**
+   * Create necessary components to mine a resource given a target rid
+   */
   extractResource = (target) => {
+    // TODO: Don't allow this to happen if a player already has an extractor
     let rid = `${target}.mining_resource`
-    let fps = 1 //TODO: Change if FPS changes
     this.client.get(rid).then(mining_resource => {
       let extractor = {
         target: rid,
-        remaining_ms: (mining_resource.qty / fps) * 1000
+        remaining_ms: (mining_resource.qty / this.state.fps) * 1000
       }
-      this.setState({ mining_resource_eta_ms: (mining_resource.qty / fps) * 1000, recently_mined: null })
+      this.setState({ mining_resource_eta_ms: (mining_resource.qty / this.state.fps) * 1000, recently_mined: null })
       this.client.get(`${target}.mining_lock`).then(_res => {
         console.log("Resource is already being mined")//TODO: Display error message here. 
       }).catch(_err => {
@@ -144,12 +153,61 @@ class Stacktrader extends Component {
   }
 
   /**
+   * Initiate a merchant transaction to sell stacks
+   */
+  initiateTransaction = () => {
+    this.setState({ isSelling: true })
+  }
+
+  /**
+   * Take an item from a player's inventory and add it to the sell list for merchant processing
+   */
+  sellItem = (item) => {
+    this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.sell_list`, 'new', item).then(_res => {
+      this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.inventory`, 'delete', { rid: item._rid })
+      this.client.get(`decs.components.${this.state.shard}.${this.state.entity_id}.sell_list`).then(sell_list => {
+        sell_list.on('remove', () => {
+          if (!this.state.wallet) {
+            this.client.get(`decs.components.${this.state.shard}.${this.state.entity_id}.wallet`).then(wallet => {
+              wallet.on('change', this.onUpdate)
+              this.setState({ wallet })
+            })
+          }
+          this.onUpdate()
+        })
+      })
+    })
+  }
+
+  /**
    * Helper function to set a Target's UI friendly name from its rid
    */
   getNameForRid = (rid) => {
     this.client.get(`${rid}.transponder`).then(transponder => {
       this.setState({ target_name: transponder.display_name })
+    }).catch(err => {
+      console.log(err)
     })
+  }
+
+  /**
+   * Helper function to determine if a player is within range of a starbase
+   */
+  withinStarbaseRange = () => {
+    let contacts = Array.from(this.state.contacts)
+    for (let i = 0; i < contacts.length; i++) {
+      if (contacts[i].entity_id === "starbase_0") {
+        return contacts[i].distance <= 5.0;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Helper function to determine if a player is within range of a specified asteroid
+   */
+  withinAsteroidRange = (asteroidContact) => {
+    return asteroidContact.distance <= 5.0
   }
 
   /**
@@ -185,7 +243,7 @@ class Stacktrader extends Component {
               </CardHeader>
               <CardBody>
                 <Row style={{ marginRight: '0px', marginLeft: '0px' }}>
-                  <Col>
+                  <Col xs="3">
                     <Row>
                       <strong>Position:</strong>
                     </Row>
@@ -199,57 +257,79 @@ class Stacktrader extends Component {
                       z: {this.state.position.z.toPrecision(3)}
                     </Row>
                   </Col>
-                  <Col>
+                  <Col xs="9">
                     <Row>
                       <strong>Velocity:</strong>
                     </Row>
                     <Row>
-                      Magnitude (km/hr): <input type="range" min={0} max={3600} value={this.state.velocity.mag} step={10} class="slider" id="velocityMagnitude"
-                        onInput={(e) => {
-                          let velocity = this.state.velocity
-                          velocity.mag = Number.parseInt(e.target.value)
-                          this.setState({ velocity })
-                        }}
-                        onMouseUp={(e) => this.handleVelocityChange({ mag: Number.parseInt(e.target.value) })}
-                        onPointerUp={(e) => this.handleVelocityChange({ mag: Number.parseInt(e.target.value) })} /> {this.state.velocity.mag}
+                      Magnitude:
+                      <Row>
+                        <Col>
+                          <input type="range" min={0} max={3600} value={this.state.velocity.mag} step={10} class="slider" id="velocityMagnitude"
+                            onInput={(e) => {
+                              let velocity = this.state.velocity
+                              velocity.mag = Number.parseInt(e.target.value)
+                              this.setState({ velocity })
+                            }}
+                            onMouseUp={(e) => this.handleVelocityChange({ mag: Number.parseInt(e.target.value) })}
+                            onPointerUp={(e) => this.handleVelocityChange({ mag: Number.parseInt(e.target.value) })} />
+                        </Col>
+                        <Col>
+                          {this.state.velocity.mag} km/hr
+                        </Col>
+                      </Row>
                     </Row>
                     <Row>
-                      Direction: <input type="range" min="0" max="360" value={this.getAzimuth()}
-                        onInput={(e) => {
-                          let angle = Number.parseInt(e.target.value) * Math.PI / 180
-                          let ux = Math.cos(angle)
-                          let uy = Math.sin(angle)
-                          let velocity = this.state.velocity
-                          velocity.ux = ux
-                          velocity.uy = uy
-                          this.setState({ velocity })
-                        }}
-                        onMouseUp={(e) => {
-                          let angle = Number.parseInt(e.target.value) * Math.PI / 180
-                          let ux = Math.cos(angle)
-                          let uy = Math.sin(angle)
-                          this.handleVelocityChange({ ux, uy })
-                        }}
-                        onTouchEnd={(e) => {
-                          let angle = Number.parseInt(e.target.value) * Math.PI / 180
-                          let ux = Math.cos(angle)
-                          let uy = Math.sin(angle)
-                          this.handleVelocityChange({ ux, uy })
-                        }} step="1" class="slider" id="velocityDirection" />
-                      <div style={{ width: '24px', height: '24px', transform: `rotate(${this.getAzimuth() <= 180 ? 90 - this.getAzimuth() : (this.getAzimuth() - 90) * -1}deg)` }}><i className="icon-arrow-up-circle font-2xl"></i></div>
+                      Direction:
+                      <Row>
+                        <Col>
+                          <input type="range" min="0" max="360" value={this.getAzimuth()}
+                            onInput={(e) => {
+                              let angle = Number.parseInt(e.target.value) * Math.PI / 180
+                              let ux = Math.cos(angle)
+                              let uy = Math.sin(angle)
+                              let velocity = this.state.velocity
+                              velocity.ux = ux
+                              velocity.uy = uy
+                              this.setState({ velocity })
+                            }}
+                            onMouseUp={(e) => {
+                              let angle = Number.parseInt(e.target.value) * Math.PI / 180
+                              let ux = Math.cos(angle)
+                              let uy = Math.sin(angle)
+                              this.handleVelocityChange({ ux, uy })
+                            }}
+                            onTouchEnd={(e) => {
+                              let angle = Number.parseInt(e.target.value) * Math.PI / 180
+                              let ux = Math.cos(angle)
+                              let uy = Math.sin(angle)
+                              this.handleVelocityChange({ ux, uy })
+                            }} step="1" class="slider" id="velocityDirection" />
+                        </Col>
+                        <Col>
+                          <div style={{ width: '24px', height: '24px', transform: `rotate(${this.getAzimuth() <= 180 ? 90 - this.getAzimuth() : (this.getAzimuth() - 90) * -1}deg)` }}><i className="icon-arrow-up-circle font-2xl"></i></div>
+                        </Col>
+                      </Row>
                     </Row>
                     <Row>
-                      Elevation: <input type="range" min={-1} max={1} value={this.state.velocity.uz} step={0.1} class="slider" id="velocityDirection"
-                        onInput={(e) => {
-                          let velocity = this.state.velocity
-                          velocity.uz = Number.parseFloat(e.target.value)
-                          this.setState({ velocity })
-                        }}
-                        onMouseUp={(e) => this.handleVelocityChange({ uz: Number.parseFloat(e.target.value) })}
-                        onTouchEnd={(e) => this.handleVelocityChange({ uz: Number.parseFloat(e.target.value) })} />
-                      <div style={{ width: '24px', height: '24px', transform: `rotate(${this.state.velocity.uz > 0 ? 0 : 180}deg)` }}>
-                        <i className={`${this.state.velocity.uz === 0 ? 'icon-arrow-dot-circle' : 'icon-arrow-up-circle'} font-2xl`}></i>
-                      </div>
+                      Elevation:
+                      <Row>
+                        <Col>
+                          <input type="range" min={-1} max={1} value={this.state.velocity.uz.toPrecision(1)} step={0.1} class="slider" id="velocityDirection"
+                            onInput={(e) => {
+                              let velocity = this.state.velocity
+                              velocity.uz = Number.parseFloat(e.target.value)
+                              this.setState({ velocity })
+                            }}
+                            onMouseUp={(e) => this.handleVelocityChange({ uz: Number.parseFloat(e.target.value) })}
+                            onTouchEnd={(e) => this.handleVelocityChange({ uz: Number.parseFloat(e.target.value) })} />
+                        </Col>
+                        <Col>
+                          <div style={{ width: '24px', height: '24px', transform: `rotate(${this.state.velocity.uz > 0 ? 0 : 180}deg)` }}>
+                            <i className={`${this.state.velocity.uz === 0 ? 'icon-arrow-dot-circle' : 'icon-arrow-up-circle'} font-2xl`}></i>
+                          </div>
+                        </Col>
+                      </Row>
                     </Row>
                   </Col>
                 </Row>
@@ -262,7 +342,7 @@ class Stacktrader extends Component {
                 Inventory
               </CardHeader>
               <CardBody>
-                <Inventory inventory={Array.from(this.state.inventory)} />
+                <Inventory inventory={Array.from(this.state.inventory)} wallet={this.state.wallet} isSelling={this.state.isSelling} withinStarbaseRange={this.withinStarbaseRange} sellItem={this.sellItem} />
                 <br />
                 {this.state.extractor &&
                   <Progress animated className="mb-3"
@@ -271,7 +351,6 @@ class Stacktrader extends Component {
                 {this.state.recently_mined &&
                   <Row style={{ marginRight: '0px', marginLeft: '0px' }}>
                     Last mined: {this.state.recently_mined.qty} {this.state.recently_mined.stack_type} stacks
-                    {/* TODO: Nice to have later, UI friendly name of resource we mined above. */}
                   </Row>}
               </CardBody>
             </Card>
@@ -297,9 +376,8 @@ class Stacktrader extends Component {
                     </Row>
                     <Progress animated className="mb-3"
                       color={this.state.target.eta_ms <= 0.0 && this.state.target.distance_km <= 5.0 ? "success" : "primary"}
-                      value={this.state.target.eta_ms <= 0.0 ? 100 :
-                        this.state.target.distance_km >= this.state.radar_receiver.radius ? 0 :
-                          100 * (this.state.radar_receiver.radius - Number.parseFloat(this.state.target.distance_km)) / this.state.radar_receiver.radius} />
+                      value={this.state.target.eta_ms <= 0.0 ? 100 : !this.state.initial_distance ? 0 :
+                        100 * (this.state.initial_distance - Number.parseFloat(this.state.target.distance_km)) / this.state.initial_distance} />
                   </Col>
                 </Row>
               </CardBody>
@@ -330,7 +408,7 @@ class Stacktrader extends Component {
                 Radar
               </CardHeader>
               <CardBody>
-                {this.state.entity_id && <Radar client={this.client} shard={this.state.shard} entity={this.state.entity_id} navigateToTarget={this.setTarget} />}
+                {this.state.entity_id && <Radar client={this.client} shard={this.state.shard} entity={this.state.entity_id} navigateToTarget={this.setTarget} playerRotate={this.getAzimuth() <= 180 ? 90 - this.getAzimuth() : (this.getAzimuth() - 90) * -1} />}
               </CardBody>
             </Card>
           </Col>
@@ -341,19 +419,19 @@ class Stacktrader extends Component {
                   </CardHeader>
               <CardBody>
                 <br />
-                <Table hover responsive className="table-outline mb-0 d-sm-table">
-                  <thead className="thead-light">
+                <Table hover responsive striped size="sm">
+                  <thead>
                     <tr>
                       <th className="text-center">Type</th>
                       <th>Contact</th>
+                      <th>Action</th>
                       <th>Distance</th>
                       <th className="text-center">Angle</th>
                       <th className="text-center">Elevation</th>
-                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {this.state.contacts && Array.from(this.state.contacts).sort((a, b) => a.distance_xy - b.distance_xy).map((contact, idx) =>
+                    {this.state.contacts && Array.from(this.state.contacts).sort((a, b) => a.distance - b.distance).map((contact, idx) =>
                       <tr>
                         <td className="text-center">
                           <div>
@@ -370,9 +448,33 @@ class Stacktrader extends Component {
                           <div>{contact.transponder.display_name}</div>
                         </td>
                         <td>
+                          <Row style={{ marginLeft: '0px', marginRight: '0px' }}>
+                            <Button style={{ marginRight: '2px' }} color="success" size="sm" onClick={() => this.navigateToTarget(contact)}>Navigate</Button>
+                            <Button style={{ marginRight: '2px' }} color="primary" size="sm" onClick={() => this.setTarget(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Target</Button>
+                            {contact.transponder.object_type === "asteroid" &&
+                              <Button style={{ marginRight: '2px' }} color="warning" size="sm" onClick={() => {
+                                if (this.withinAsteroidRange(contact)) {
+                                  this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
+                                } else {
+                                  console.log("Not close enough to asteroid")
+                                }
+                              }}>Mine</Button>
+                            }
+                            {contact.transponder.object_type === "starbase" &&
+                              <Button style={{ marginRight: '2px' }} color="warning" size="sm" onClick={() => {
+                                if (this.withinStarbaseRange()) {
+                                  this.initiateTransaction()
+                                } else {
+                                  console.log("Not close enough to starbase")
+                                }
+                              }}>Sell</Button>
+                            }
+                          </Row>
+                        </td>
+                        <td>
                           <div className="clearfix">
                             <div className="float-left">
-                              <strong>{contact.distance_xy}km</strong>
+                              <strong>{contact.distance}km</strong>
                             </div>
                           </div>
                         </td>
@@ -386,22 +488,6 @@ class Stacktrader extends Component {
                             <i className={`${contact.elevation === 90 ? "icon-arrow-dot-circle" : contact.elevation < 90 ? "icon-arrow-up-circle" : "icon-arrow-down-circle"} font-2xl`}></i>
                           </div>
                         </td>
-                        <td>
-                          <Col className="text-center">
-                            <Row>
-                              <Button style={{ marginBottom: '2px', justifyContent: 'center' }} color="success" size="sm" onClick={() => this.navigateToTarget(contact)}>Navigate</Button>
-                            </Row>
-                            <Row>
-                              <Button style={{ marginBottom: '2px', justifyContent: 'center' }} color="primary" size="sm" onClick={() => this.setTarget(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Target</Button>
-                            </Row>
-                            {contact.transponder.object_type === "asteroid" && <Row>
-                              <Button style={{ justifyContent: 'center' }} color="warning" size="sm" onClick={() => this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Mine</Button>
-                            </Row>}
-                            {contact.transponder.object_type === "starbase" && <Row>
-                              <Button style={{ justifyContent: 'center' }} color="warning" size="sm" onClick={() => console.log("Sell to starbase...")}>Sell</Button>
-                            </Row>}
-                          </Col>
-                        </td>
                       </tr>
                     )}
                   </tbody>
@@ -414,49 +500,79 @@ class Stacktrader extends Component {
     );
   }
 
-  initializePlayer() {
+  /**
+   * Helper function to load all player components and populate game state
+   */
+  loadPlayer = (entity_id, shard) => {
+    this.setState({ entity_id, shard })
+    this.client.get(`decs.components.${shard}.${entity_id}.velocity`).then(velocity => {
+      velocity.on('change', this.onUpdate)
+      this.setState({ velocity })
+    })
+    this.client.get(`decs.components.${shard}.${entity_id}.position`).then(position => {
+      position.on('change', this.onUpdate)
+      this.setState({ position })
+    })
+    this.client.get(`decs.components.${shard}.${entity_id}.radar_receiver`).then(radar_receiver => {
+      radar_receiver.on('change', this.onUpdate)
+      this.setState({ radar_receiver })
+    })
+    this.client.get(`decs.components.${shard}.${entity_id}.wallet`).then(wallet => {
+      wallet.on('change', this.onUpdate)
+      this.setState({ wallet })
+    }).catch(err => {
+      console.log(err)
+    })
+
+    // Evaluate if there was previously a target.
+    this.client.get(`decs.components.${shard}.${entity_id}.target`).then(target => {
+      this.setState({ target })
+      this.getNameForRid(target.rid)
+      target.on('change', this.onUpdate)
+    }).catch(err => {
+      console.log(err)
+    })
+
+    // Start polling for radar contacts
+    this.setupRadarContacts(entity_id)
+
+    // Start polling for player inventory
+    this.setupInventory(entity_id)
+  }
+
+  /**
+   * Helper function to initialize a player with default values in the universe.
+   */
+  initializePlayer = (entity_id, shard) => {
+    this.setState({ entity_id, shard })
     this.client.get('decs.shards').then(_shards => {
       let position = this.state.position;
       let velocity = this.state.velocity;
       let radar_receiver = this.state.radar_receiver;
-      let entity = this.state.entity_id
 
-      this.client.call(`decs.components.${this.state.shard}.${entity}.velocity`, 'set', velocity).then(_res => {
-        this.client.get(`decs.components.${this.state.shard}.${entity}.velocity`).then(velocity => {
-          velocity.on('change', this.onUpdate)
-          this.setState({ velocity })
+      // Create velocity component
+      this.client.call(`decs.components.${shard}.${entity_id}.velocity`, 'set', velocity).then(_res => {
+        // Create position component
+        this.client.call(`decs.components.${shard}.${entity_id}.position`, 'set', position).then(_res => {
+          // Create radar_receiver component
+          this.client.call(`decs.components.${shard}.${entity_id}.radar_receiver`, 'set', radar_receiver).then(_res => {
+            this.loadPlayer(entity_id, shard)
+          })
         })
-      });
-      this.client.call(`decs.components.${this.state.shard}.${entity}.position`, 'set', position).then(_res => {
-        this.client.get(`decs.components.${this.state.shard}.${entity}.position`).then(position => {
-          position.on('change', this.onUpdate)
-          this.setState({ position })
-        })
-      });
-      this.client.call(`decs.components.${this.state.shard}.${entity}.radar_receiver`, 'set', radar_receiver).then(_res => {
-        this.client.get(`decs.components.${this.state.shard}.${entity}.radar_receiver`).then(radar_receiver => {
-          this.setState({ radar_receiver })
-        })
-        // this.setupRadarDemo()
-        setTimeout(() => this.setupRadarContacts(entity), 500)
       })
-      this.client.get(`decs.components.${this.state.shard}.${entity}.target`).then(target => {
-        this.setState({ target })
-        this.getNameForRid(target.rid)
-        target.on('change', this.onUpdate)
-      }).catch(err => {
-        console.log(err)
-      })
-      this.setupInventory(entity)
     }).catch(err => {
       console.log(err);
     });
   }
 
-  setupInventory(entity) {
-    this.client.get(`decs.components.${this.state.shard}.${entity}.inventory`).then(inventory => {
-      this.setState({ inventory })
+  /**
+   * Tries to get an entity's inventory, if unsuccessful retries every second until successful.
+   * @param {string} entity_id entity_id that you are interested in
+   */
+  setupInventory = (entity_id) => {
+    this.client.get(`decs.components.${this.state.shard}.${entity_id}.inventory`).then(inventory => {
       inventory.on('remove', this.onUpdate)
+      // When a resource is added to the inventory, clear the extractor from the UI and set a recently_mined state.
       inventory.on('add', (add) => {
         if (!add.item) {
           return
@@ -472,85 +588,26 @@ class Stacktrader extends Component {
           this.onUpdate()
         }
       })
+      this.setState({ inventory, extractor: null })
     }).catch(_err => {
-      setTimeout(() => this.setupInventory(entity), 1000)
+      setTimeout(() => this.setupInventory(entity_id), 1000)
     })
   }
 
+  /**
+   * Tries to get an entity's radar contacts, if unsuccessful retries every second until successful.
+   * @param {string} entity entity_id that you are interested in
+   */
   setupRadarContacts(entity) {
     this.client.get(`decs.components.${this.state.shard}.${entity}.radar_contacts`).then(contacts => {
       contacts.on('add', this.onUpdate)
       contacts.on('remove', this.onUpdate)
       this.setState({ contacts })
     }).catch(err => {
-      console.log(err)
       setTimeout(() => this.setupRadarContacts(entity), 1000)
     })
   }
 
-  // Demo functions begin
-  setupRadarDemo() {
-    /**
-     * Color guide:
-     * CoreUI Danger: f86c6b
-     * CoreUI Warning: ffc107
-     * CoreUI Primary: 20a8d8
-     * CoreUI Success: 4dbd74
-     */
-    this.setupAsteroid("sapphire_asteroid", "Sapphire Asteroid", -2, -4, -2, "#20a8d8", "spendy");
-    this.setupAsteroid("emerald_asteroid", "Emerald Asteroid", -2, 1, -1, "#4dbd74", "spendy");
-    this.setupAsteroid("donut_asteroid", "Donut Asteroid", 1, -8, 0, "#f86c6b", "tasty");
-    this.setupAsteroid("kubernetes_asteroid", "Kubernetes Asteroid", 2, 2, 3, "#ffc107", "critical");
-    this.setupEntity("friendly_spaceship", "Friendly Spaceship", 10, 9, 0, "#4dbd74");
-    this.setupEntity("other_player_spaceship", "USS Bob", 7, 10, 0, "#f86c6b");
-    this.setupEntity("starbase_alpha", "Starbase Alpha", 10, 10, 0, "#ffc107");
-    this.setupEntity("unknown_spaceship", "Unknown Spaceship", 20, 20, 0, "#ffc107");
-  }
-
-  setupAsteroid = (entity_id, name, x, y, z, color, stack_type) => {
-    let mining_resource = {
-      stack_type,
-      qty: entity_id.length
-    }
-    this.client.call(`decs.components.${this.state.shard}.${entity_id}.mining_resource`, 'set', mining_resource).then(_res => {
-      // console.log(res)
-    }).catch(err => {
-      console.log(err)
-    })
-
-    this.setupEntity(entity_id, name, x, y, z, color);
-  }
-
-  setupEntity(entity_id, name, x, y, z, color) {
-    let position = { x, y, z };
-    let velocity = { "mag": 0, "ux": 1.0, "uy": 1.0, "uz": 1.0 };
-    let transponder = null;
-    if (entity_id.includes("asteroid")) {
-      transponder = {
-        object_type: "asteroid",
-        display_name: name,
-        color
-      }
-    } else if (entity_id.includes("ship")) {
-      transponder = {
-        object_type: "ship",
-        display_name: name,
-        color
-      }
-    } else if (entity_id.includes("starbase")) {
-      transponder = {
-        object_type: "starbase",
-        display_name: name,
-        color
-      }
-    } else {
-      return
-    }
-    this.client.call(`decs.components.${this.state.shard}.${entity_id}.transponder`, 'set', transponder);
-    this.client.call(`decs.components.${this.state.shard}.${entity_id}.velocity`, 'set', velocity);
-    this.client.call(`decs.components.${this.state.shard}.${entity_id}.position`, 'set', position);
-  }
-  // Demo functions ends
 }
 
 export default Stacktrader;

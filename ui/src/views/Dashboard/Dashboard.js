@@ -1,16 +1,12 @@
-import React, { Component, lazy, Suspense } from 'react';
+import React, { Component } from 'react';
 import { Bar, Line } from 'react-chartjs-2';
 import {
-  Badge,
   Button,
   ButtonDropdown,
   ButtonGroup,
-  ButtonToolbar,
   Card,
   CardBody,
-  CardFooter,
   CardHeader,
-  CardTitle,
   Col,
   Dropdown,
   DropdownItem,
@@ -21,9 +17,7 @@ import {
   Table,
 } from 'reactstrap';
 import { CustomTooltips } from '@coreui/coreui-plugin-chartjs-custom-tooltips';
-import { getStyle, hexToRgba } from '@coreui/coreui-pro/dist/js/coreui-utilities'
-
-const Widget03 = lazy(() => import('../../views/Widgets/Widget03'));
+import { getStyle } from '@coreui/coreui-pro/dist/js/coreui-utilities'
 
 const brandPrimary = getStyle('--primary')
 const brandSuccess = getStyle('--success')
@@ -227,60 +221,60 @@ const cardChartOpts4 = {
 };
 
 // Social Box Chart
-const socialBoxData = [
-  { data: [65, 59, 84, 84, 51, 55, 40], label: 'facebook' },
-  { data: [1, 13, 9, 17, 34, 41, 38], label: 'twitter' },
-  { data: [78, 81, 80, 45, 34, 12, 40], label: 'linkedin' },
-  { data: [35, 23, 56, 22, 97, 23, 64], label: 'google' },
-];
+// const socialBoxData = [
+//   { data: [65, 59, 84, 84, 51, 55, 40], label: 'facebook' },
+//   { data: [1, 13, 9, 17, 34, 41, 38], label: 'twitter' },
+//   { data: [78, 81, 80, 45, 34, 12, 40], label: 'linkedin' },
+//   { data: [35, 23, 56, 22, 97, 23, 64], label: 'google' },
+// ];
 
-const makeSocialBoxData = (dataSetNo) => {
-  const dataset = socialBoxData[dataSetNo];
-  const data = {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-    datasets: [
-      {
-        backgroundColor: 'rgba(255,255,255,.1)',
-        borderColor: 'rgba(255,255,255,.55)',
-        pointHoverBackgroundColor: '#fff',
-        borderWidth: 2,
-        data: dataset.data,
-        label: dataset.label,
-      },
-    ],
-  };
-  return () => data;
-};
+// const makeSocialBoxData = (dataSetNo) => {
+//   const dataset = socialBoxData[dataSetNo];
+//   const data = {
+//     labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+//     datasets: [
+//       {
+//         backgroundColor: 'rgba(255,255,255,.1)',
+//         borderColor: 'rgba(255,255,255,.55)',
+//         pointHoverBackgroundColor: '#fff',
+//         borderWidth: 2,
+//         data: dataset.data,
+//         label: dataset.label,
+//       },
+//     ],
+//   };
+//   return () => data;
+// };
 
-const socialChartOpts = {
-  tooltips: {
-    enabled: false,
-    custom: CustomTooltips
-  },
-  responsive: true,
-  maintainAspectRatio: false,
-  legend: {
-    display: false,
-  },
-  scales: {
-    xAxes: [
-      {
-        display: false,
-      }],
-    yAxes: [
-      {
-        display: false,
-      }],
-  },
-  elements: {
-    point: {
-      radius: 0,
-      hitRadius: 10,
-      hoverRadius: 4,
-      hoverBorderWidth: 3,
-    },
-  },
-};
+// const socialChartOpts = {
+//   tooltips: {
+//     enabled: false,
+//     custom: CustomTooltips
+//   },
+//   responsive: true,
+//   maintainAspectRatio: false,
+//   legend: {
+//     display: false,
+//   },
+//   scales: {
+//     xAxes: [
+//       {
+//         display: false,
+//       }],
+//     yAxes: [
+//       {
+//         display: false,
+//       }],
+//   },
+//   elements: {
+//     point: {
+//       radius: 0,
+//       hitRadius: 10,
+//       hoverRadius: 4,
+//       hoverBorderWidth: 3,
+//     },
+//   },
+// };
 
 // sparkline charts
 const sparkLineChartData = [
@@ -377,80 +371,80 @@ for (var i = 0; i <= elements; i++) {
   data3.push(65);
 }
 
-const mainChart = {
-  labels: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
-  datasets: [
-    {
-      label: 'My First dataset',
-      backgroundColor: hexToRgba(brandInfo, 10),
-      borderColor: brandInfo,
-      pointHoverBackgroundColor: '#fff',
-      borderWidth: 2,
-      data: data1,
-    },
-    {
-      label: 'My Second dataset',
-      backgroundColor: 'transparent',
-      borderColor: brandSuccess,
-      pointHoverBackgroundColor: '#fff',
-      borderWidth: 2,
-      data: data2,
-    },
-    {
-      label: 'My Third dataset',
-      backgroundColor: 'transparent',
-      borderColor: brandDanger,
-      pointHoverBackgroundColor: '#fff',
-      borderWidth: 1,
-      borderDash: [8, 5],
-      data: data3,
-    },
-  ],
-};
+// const mainChart = {
+//   labels: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+//   datasets: [
+//     {
+//       label: 'My First dataset',
+//       backgroundColor: hexToRgba(brandInfo, 10),
+//       borderColor: brandInfo,
+//       pointHoverBackgroundColor: '#fff',
+//       borderWidth: 2,
+//       data: data1,
+//     },
+//     {
+//       label: 'My Second dataset',
+//       backgroundColor: 'transparent',
+//       borderColor: brandSuccess,
+//       pointHoverBackgroundColor: '#fff',
+//       borderWidth: 2,
+//       data: data2,
+//     },
+//     {
+//       label: 'My Third dataset',
+//       backgroundColor: 'transparent',
+//       borderColor: brandDanger,
+//       pointHoverBackgroundColor: '#fff',
+//       borderWidth: 1,
+//       borderDash: [8, 5],
+//       data: data3,
+//     },
+//   ],
+// };
 
-const mainChartOpts = {
-  tooltips: {
-    enabled: false,
-    custom: CustomTooltips,
-    intersect: true,
-    mode: 'index',
-    position: 'nearest',
-    callbacks: {
-      labelColor: function (tooltipItem, chart) {
-        return { backgroundColor: chart.data.datasets[tooltipItem.datasetIndex].borderColor }
-      }
-    }
-  },
-  maintainAspectRatio: false,
-  legend: {
-    display: false,
-  },
-  scales: {
-    xAxes: [
-      {
-        gridLines: {
-          drawOnChartArea: false,
-        },
-      }],
-    yAxes: [
-      {
-        ticks: {
-          beginAtZero: true,
-          maxTicksLimit: 5,
-          stepSize: Math.ceil(250 / 5),
-          max: 250,
-        },
-      }],
-  },
-  elements: {
-    point: {
-      radius: 0,
-      hitRadius: 10,
-      hoverRadius: 4,
-      hoverBorderWidth: 3,
-    },
-  },
-};
+// const mainChartOpts = {
+//   tooltips: {
+//     enabled: false,
+//     custom: CustomTooltips,
+//     intersect: true,
+//     mode: 'index',
+//     position: 'nearest',
+//     callbacks: {
+//       labelColor: function (tooltipItem, chart) {
+//         return { backgroundColor: chart.data.datasets[tooltipItem.datasetIndex].borderColor }
+//       }
+//     }
+//   },
+//   maintainAspectRatio: false,
+//   legend: {
+//     display: false,
+//   },
+//   scales: {
+//     xAxes: [
+//       {
+//         gridLines: {
+//           drawOnChartArea: false,
+//         },
+//       }],
+//     yAxes: [
+//       {
+//         ticks: {
+//           beginAtZero: true,
+//           maxTicksLimit: 5,
+//           stepSize: Math.ceil(250 / 5),
+//           max: 250,
+//         },
+//       }],
+//   },
+//   elements: {
+//     point: {
+//       radius: 0,
+//       hitRadius: 10,
+//       hoverRadius: 4,
+//       hoverBorderWidth: 3,
+//     },
+//   },
+// };
 
 class Dashboard extends Component {
   constructor(props) {

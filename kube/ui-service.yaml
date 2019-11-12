@@ -3,15 +3,15 @@ kind: Service
 metadata:
   creationTimestamp: null
   labels:
-    app: dashboard
-  name: dashboard
+    app: ui
+  name: ui
 spec:
   ports:
-  - name: http
-    port: 9090
-    targetPort: 9090
-    protocol: TCP
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: http
   selector:
-    app: dashboard
+    app: ui
 status:
   loadBalancer: {}

@@ -116,9 +116,9 @@ fn publish_credits_add(
         0 // this shouldn't happen unless there's a malformed mining resource in the player's inv
     };
     let new_amount = (itemval * item.qty as i32) + wallet.credits; // TODO: this is not idempotent and potentially problematic with multiple merchant systems running...
-    let wallet = CreditWallet {
+    let wallet = serde_json::json!({"params": CreditWallet {
         credits: new_amount,
-    };
+    }});
 
     let setreq = ResProtocolRequest::Set(key.replace(':', ".").to_string());
     ctx.msg()
