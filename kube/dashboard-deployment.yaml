@@ -15,13 +15,13 @@ spec:
         app: dashboard
     spec:
       containers:
-      - image: decscloud/dashboard
-        name: dashboard
-        ports:
-        - containerPort: 9090
-        resources: {}
       - env:
         - name: RESGATE_HOST
           value: http://resgate:8080        
+        name: dashboard
+        image: decscloud/dashboard
+        ports:
+        - containerPort: 9090
+        resources: {}
       restartPolicy: Always
 status: {}

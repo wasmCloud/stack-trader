@@ -1,0 +1,31 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: ui
+    game: stacktrader
+  name: ui
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: ui
+        game: stacktrader
+    spec:
+      containers:
+        - env:
+            - name: PORT
+              value: "9090"
+            - name: RESGATE_HOST
+              value: http://resgate:8080
+          image: stacktrader/ui
+          name: ui
+          ports:
+            - containerPort: 9090
+          resources: {}
+      restartPolicy: Always
+status: {}

@@ -3,15 +3,14 @@ kind: Service
 metadata:
   creationTimestamp: null
   labels:
-    app: dashboard
-  name: dashboard
+    app: mining
+  name: mining
 spec:
   ports:
-  - name: http
-    port: 9090
-    targetPort: 9090
-    protocol: TCP
+    - name: "9000"
+      port: 9000
+      targetPort: 9000
   selector:
-    app: dashboard
+    app: mining
 status:
   loadBalancer: {}
