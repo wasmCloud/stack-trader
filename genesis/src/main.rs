@@ -6,6 +6,7 @@ extern crate serde_json;
 
 use natsclient::{AuthenticationStyle, Client, ClientOptions};
 use rand::Rng;
+use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
@@ -56,9 +57,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     f.read_to_end(&mut buffer)?;
     let params: UniverseParameters = serde_json::from_slice(&buffer)?;
+    let natsurl = env::var("NATS")?;
 
     let opts = ClientOptions::builder()
-        .cluster_uris(vec!["nats://localhost:4222".into()])
+        .cluster_uris(vec![natsurl.into()])
         .authentication(AuthenticationStyle::Anonymous)
         .build()?;
 

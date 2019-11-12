@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: genesis
+    game: stacktrader
+  name: genesis
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: genesis
+        game: stacktrader
+    spec:
+      containers:
+        - env:
+            - name: PORT
+              value: "9000"
+            - name: RUST_LOG
+              value: warn
+            - name: NATS_URL
+              value: nats://nats:4222
+          image: stacktrader/genesis
+          name: genesis
+          ports:
+            - containerPort: 9000
+          resources: {}
+      restartPolicy: Always
+status: {}
