@@ -31,13 +31,15 @@ class Radar extends Component {
 
     deleteTarget = (event) => {
         if (event.target instanceof HTMLDivElement) {
-            this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.target`, 'delete').then(r => {
-                this.props.navigateToTarget('delete')
+            this.props.client.get(`decs.components.${this.props.shard}.${this.props.entity}.target`).then(target => {
+                this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.target`, 'delete', target).then(_r => {
+                    this.props.navigateToTarget('delete')
+                })
             })
         }
     }
 
-    navigateToContact = (_event, contact) => {
+    targetEntity = (_event, contact) => {
         this.props.navigateToTarget(`decs.components.${this.props.shard}.${contact.entity_id}`)
     }
 
@@ -62,12 +64,12 @@ class Radar extends Component {
             let icon = contact.transponder.object_type === "asteroid" ? "fa-bullseye" :
                 contact.transponder.object_type === "ship" ? "fa-space-shuttle" :
                     contact.transponder.object_type === "starbase" ? "fa-fort-awesome" : "fa-warning"
-            return <span style={style} className={`dot radar-icon fa ${icon} fa-lg`} onClick={(e) => this.navigateToContact(e, contact)}></span>
+            return <span style={style} className={`dot radar-icon fa ${icon} fa-lg`} onClick={(e) => this.targetEntity(e, contact)}></span>
         })
         return (
             <div id="radar-container">
                 <div id="radar" className="animated">
-                    <i style={{ pointerEvents: 'none' }} className="player-rocket radar-icon icon-rocket icons font-2xl"><i></i></i>
+                    <i style={{ pointerEvents: 'none', transform: `rotate(${this.props.playerRotate}deg)` }} className="player-rocket radar-icon icon-rocket icons font-2xl"><i></i></i>
                     <div id="guides" onClick={(e) => this.deleteTarget(e.nativeEvent)}>
                         <div className="circle" style={{ pointerEvents: 'none' }}></div>
                         {dots}

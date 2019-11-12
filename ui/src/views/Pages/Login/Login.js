@@ -18,7 +18,7 @@ class Login extends Component {
   login = (e) => {
     console.log("Login")
     e.preventDefault()
-    this.setState({ loggedIn: this.state.username != '' })
+    this.setState({ loggedIn: this.state.username !== '' })
   }
 
   redirectToGame = () => {

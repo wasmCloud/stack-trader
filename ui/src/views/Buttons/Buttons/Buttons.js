@@ -579,7 +579,7 @@ class Buttons extends Component {
               <Col col="2" className="mb-3 mb-xl-0 text-center">
                 <Button color="primary" size="lg">Standard Button</Button>
               </Col>
-              <Col col="2"className="mb-3 mb-xl-0 text-center">
+              <Col col="2" className="mb-3 mb-xl-0 text-center">
                 <Button outline color="secondary" size="lg">Outline Button</Button>
               </Col>
               <Col col="2" className="mb-3 mb-xl-0 text-center">
