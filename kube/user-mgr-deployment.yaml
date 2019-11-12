@@ -1,0 +1,35 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  name: user-mgr
+  labels:
+    app: user-mgr
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: user-mgr
+    spec:
+      containers:
+        - env:
+            - name: PORT
+              value: "9000"
+            - name: RUST_LOG
+              value: warn
+            - name: NATS_URL
+              value: nats://nats:4222
+            - name: REDIS_URL
+              value: redis://redis:6379
+            - name: NATS_SUBSCRIPTION
+              value: get.decs.users,get.decs.user.*,access.decs.users,access.decs.user.*,call.decs.user.*.*,call.decs.users.add
+          image: decscloud/user_mgr
+          name: user-mgr
+          ports:
+            - containerPort: 9000
+          resources: {}
+      restartPolicy: Always
+status: {}

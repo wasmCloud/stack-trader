@@ -121,6 +121,24 @@ services:
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=get.decs.components.*.*.>,call.decs.components.*.*.>,access.decs.components.>"
+  user_mgr:
+    image: "decscloud/user_mgr"
+    expose:
+      - "9010"
+    ports:
+      - "9010:9010"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "PORT=9010"
+      - "RUST_LOG=info,cranelift_wasm=warn"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_URL=nats://nats:4222"
+      - "NATS_SUBSCRIPTION=get.decs.users,get.decs.user.*,access.decs.users,access.decs.user.*,call.decs.user.*.*,call.decs.users.add"
   physics:
     image: "stacktrader/physics"
     expose:

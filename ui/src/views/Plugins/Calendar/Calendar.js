@@ -103,8 +103,6 @@ const events = [
   },
 ];
 
-// todo: reactive custom calendar toolbar component
-
 class Calendar extends Component {
 
   render() {
@@ -122,25 +120,25 @@ class Calendar extends Component {
             </div>
           </CardHeader>
           <CardBody style={{ height: '40rem' }}>
-            <BigCalendar className="d-sm-down-none" style={{height: '-webkit-fill-available'}}
-                         {...this.props}
-                         events={events}
-                         views={['month', 'week', 'day']}
-                         step={30}
-                         defaultDate={new Date(currYear, currMonth, 1)}
-                         defaultView='month'
-                         toolbar={true}
-                         localizer={localizer}
+            <BigCalendar className="d-sm-down-none" style={{ height: '-webkit-fill-available' }}
+              {...this.props}
+              events={events}
+              views={['month', 'week', 'day']}
+              step={30}
+              defaultDate={new Date(currYear, currMonth, 1)}
+              defaultView='month'
+              toolbar={true}
+              localizer={localizer}
             />
             <BigCalendar className="d-md-none"
-                         {...this.props}
-                         events={events}
-                         views={['day']}
-                         step={30}
-                         defaultDate={new Date(currYear, currMonth, 1)}
-                         defaultView='day'
-                         toolbar={true}
-                         localizer={localizer}
+              {...this.props}
+              events={events}
+              views={['day']}
+              step={30}
+              defaultDate={new Date(currYear, currMonth, 1)}
+              defaultView='day'
+              toolbar={true}
+              localizer={localizer}
             />
           </CardBody>
         </Card>
