@@ -19,9 +19,10 @@ class Stacktrader extends Component {
 
   constructor(props) {
     super(props);
+    console.log('props, look for any info')
+    console.dir(props)
 
-    this.client = new ResClient('ws://localhost:8080') // TODO: Remove for nginx-rp stuff
-    // this.client = new ResClient('/resgate')
+    this.client = new ResClient('/resgate')
 
     this.state = {
       dropdownOpen: new Array(30).fill(false),
