@@ -135,7 +135,7 @@ services:
       - nats
       - redis
     environment:
-      - "PORT=9005"
+      - "PORT=9010"
       - "RUST_LOG=info,cranelift_wasm=warn"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_URL=nats://nats:4222"
