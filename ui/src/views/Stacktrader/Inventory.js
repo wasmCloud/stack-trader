@@ -2,7 +2,9 @@ import React, { Component } from 'react';
 import {
     Row,
     Col,
-} from 'reactstrap';
+} from 'reactstrap'
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';;
 
 export const StackTypes = {
     TASTY: 'tasty',
@@ -57,7 +59,7 @@ class Inventory extends Component {
         }
 
         let rowStyle = { marginRight: '0px', marginLeft: '0px' }
-        let noInteractIcon = <i className="cui-dollar icons font-2xl d-block ml-1" style={{ color: 'black', opacity: '0.5' }}></i>
+        let noInteractIcon = <i className="cui-dollar icons font-2xl d-block ml-1" style={{ color: 'black', opacity: '0.5' }} onClick={() => toast.error("Not close enough to starbase to sell")}></i>
 
         return (
             <div>
@@ -67,19 +69,19 @@ class Inventory extends Component {
                 {tastyCount > 0 && <Row style={rowStyle}>
                     {`${tastyCount} ${StackTypes.TASTY} stacks`}
                     {this.props.withinStarbaseRange() ?
-                        <i onClick={() => this.sellStack(StackTypes.TASTY)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `${this.props.isSelling ? 'green' : 'black'}` }}></i>
+                        <i onClick={() => this.sellStack(StackTypes.TASTY)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `green` }}></i>
                         : noInteractIcon}
                 </Row>}
                 {spendyCount > 0 && <Row style={rowStyle}>
                     {`${spendyCount} ${StackTypes.SPENDY} stacks`}
                     {this.props.withinStarbaseRange() ?
-                        <i onClick={() => this.sellStack(StackTypes.SPENDY)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `${this.props.isSelling ? 'green' : 'black'}` }}></i>
+                        <i onClick={() => this.sellStack(StackTypes.SPENDY)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `green` }}></i>
                         : noInteractIcon}
                 </Row>}
                 {criticalCount > 0 && <Row style={rowStyle}>
                     {`${criticalCount} ${StackTypes.CRITICAL} stacks`}
                     {this.props.withinStarbaseRange() ?
-                        <i onClick={() => this.sellStack(StackTypes.CRITICAL)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `${this.props.isSelling ? 'green' : 'black'}` }}></i>
+                        <i onClick={() => this.sellStack(StackTypes.CRITICAL)} className="cui-dollar icons font-2xl d-block ml-1" style={{ cursor: 'pointer', color: `green` }}></i>
                         : noInteractIcon}
                 </Row>}
             </div>)

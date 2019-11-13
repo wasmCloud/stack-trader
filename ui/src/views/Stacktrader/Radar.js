@@ -22,11 +22,12 @@ class Radar extends Component {
             this.setState({ contacts })
         }).catch(err => {
             setTimeout(() => this.getContacts(), 500)
+            return
         })
 
         this.props.client.get(`decs.components.${this.props.shard}.${this.props.entity}.radar_receiver`).then(radarReceiver => {
             this.setState({ radarReceiver })
-        })
+        }).catch(err => console.log)
     }
 
     deleteTarget = (event) => {
@@ -47,6 +48,7 @@ class Radar extends Component {
         let radar_receiver_radius = this.state.radarReceiver ? this.state.radarReceiver.radius : 1;
         let time = 5
         let radar_radius = 150;
+        //Potentially, here, check for duplicates and clear list if any fa-warnings show up
         let dots = Array.from(this.state.contacts).map(contact => {
             let rad = (contact.azimuth) * Math.PI / 180 * -1,
                 xOffset = contact.distance_xy * Math.cos(rad),

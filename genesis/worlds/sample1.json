@@ -29,8 +29,8 @@
     "shard_capacity": 10000,
     "max_stack_qty": 20,
     "distribution": {
-        "spendy": 0.5,
+        "spendy": 0.4,
         "tasty": 0.4,
-        "critical": 0.1
+        "critical": 0.2
     }
 }
