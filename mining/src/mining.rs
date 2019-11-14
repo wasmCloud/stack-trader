@@ -2,6 +2,8 @@ use guest::prelude::*;
 use stacktrader_types as trader;
 use trader::components::*;
 
+const DEPLETED_COLOR: &str = "#A9A9A9";
+
 /// Receives an entity, shard, elapsed time, etc from an EntityFrame
 /// published on decs.frames.{shard}.{system}, e.g. `decs.frames.the_void.physics`
 /// or `decs.frames.shard-two.navigation`. Resulting new component should be published
@@ -111,7 +113,7 @@ fn extract_resource(
             }))?,
         )?;
 
-        let asteroid_entity_id = extractor.target.split(".").collect::<Vec<&str>>()[3];
+        let asteroid_entity_id = extractor.target.split('.').collect::<Vec<&str>>()[3];
 
         // Delete lock component
         let del_lock_subject = format!(
@@ -128,37 +130,47 @@ fn extract_resource(
             }))?,
         )?;
 
-        // Delete the transponder and position to remove it from radar detection
-        let del_asteroid_subject = format!(
-            "call.decs.components.{}.{}.transponder.delete",
-            shard, asteroid_entity_id
-        );
-        ctx.msg().publish(
-            &del_asteroid_subject,
-            None,
-            &serde_json::to_vec(&json!({
-                "params": {
-                    "rid": format!("decs.components.{}.{}.transponder", shard, asteroid_entity_id)
-                }
-            }))?,
-        )?;
+        let old_tp = get_transponder(ctx, shard, asteroid_entity_id)?;
+        let new_tp = deplete_transponder(&old_tp);
 
-        let del_asteroid_position_subject = format!(
-            "call.decs.components.{}.{}.position.delete",
+        // Update the transponder to indicate the asteroid is empty
+        let update_asteroid_subject = format!(
+            "call.decs.components.{}.{}.transponder.set",
             shard, asteroid_entity_id
         );
         ctx.msg().publish(
-            &del_asteroid_position_subject,
+            &update_asteroid_subject,
             None,
-            &serde_json::to_vec(&json!({
-                "params": {
-                    "rid": format!("decs.components.{}.{}.position", shard, asteroid_entity_id)
-                }
-            }))?,
+            &serde_json::to_vec(&json!({ "params": new_tp }))?,
         )?;
 
         Ok(vec![])
     } else {
         Err("Resource mining target did not exist".into())
+    }
+}
+
+fn get_transponder(
+    ctx: &CapabilitiesContext,
+    shard: &str,
+    entity: &str,
+) -> std::result::Result<RadarTransponder, Box<dyn std::error::Error>> {
+    let raw = ctx
+        .kv()
+        .get(&format!("decs:components:{}:{}:transponder", shard, entity))?;
+    match raw {
+        Some(s) => match serde_json::from_str(&s) {
+            Ok(t) => Ok(t),
+            Err(_) => Err("unable to retrieve transponder".into()),
+        },
+        None => Err("attempted to retrieve non-existent transponder".into()),
+    }
+}
+
+fn deplete_transponder(old_tp: &RadarTransponder) -> RadarTransponder {
+    RadarTransponder {
+        color: DEPLETED_COLOR.to_string(),
+        display_name: format!("{} (depleted)", old_tp.display_name),
+        object_type: old_tp.object_type.clone(),
     }
 }

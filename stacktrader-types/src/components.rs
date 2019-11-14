@@ -2,7 +2,7 @@ extern crate decscloud_common as decs;
 
 const MS_PER_HOUR: f64 = 3_600_000.0;
 
-/// Represents the metadata and parameters for a given universe (the physical space 
+/// Represents the metadata and parameters for a given universe (the physical space
 /// contained within a shard)
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct UniverseMetadata {
@@ -11,7 +11,7 @@ pub struct UniverseMetadata {
     pub min_z: f64,
     pub max_x: f64,
     pub max_y: f64,
-    pub max_z: f64
+    pub max_z: f64,
 }
 
 impl Default for UniverseMetadata {
@@ -22,7 +22,7 @@ impl Default for UniverseMetadata {
             min_z: -100.0,
             max_x: 100.0,
             max_y: 100.0,
-            max_z: 100.0
+            max_z: 100.0,
         }
     }
 }
