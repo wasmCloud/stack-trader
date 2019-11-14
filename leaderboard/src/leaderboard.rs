@@ -53,12 +53,12 @@ fn publish_leaderboard(
     shard: &str,
     ranks: &[LeaderBoardEntry],
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    for (i, rank) in ranks.iter().enumerate() {
+    for (i, _rank) in ranks.iter().enumerate() {
         ctx.msg().publish(
             &format!("event.decs.{}.leaderboard.add", shard),
             None,
             &serde_json::to_vec(&json!({
-                "value": rank,
+                "value": ResourceIdentifier { rid: format!("decs.{}.leaderboard.{}", shard, i)},
                 "idx": i
             }))?,
         )?;
