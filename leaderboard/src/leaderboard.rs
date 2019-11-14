@@ -23,9 +23,9 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
         vec![]
     } else {
         rank_shard(&SCORES.read().unwrap()[&frame.shard])
-    };    
+    };
     purge_leaderboard(ctx, &frame.shard, old_ranks.len())?;
-    
+
     put_score(&frame.shard, &frame.entity_id, wallet.credits)?;
     let new_ranks = rank_shard(&SCORES.read().unwrap()[&frame.shard]);
     publish_leaderboard(ctx, &frame.shard, &new_ranks)?;
@@ -117,7 +117,13 @@ pub(crate) fn handle_get_collection(
     let tokens: Vec<_> = rid.split('.').collect();
     let shard = tokens[1]; // decs.(shard).leaderboard
 
-    let ranks = rank_shard(&SCORES.read().unwrap()[shard]);
+    // Return an empty collection if there are no scores in this shard yet
+    let ranks = if !SCORES.read().unwrap().contains_key(shard) {
+        vec![]
+    } else {
+        rank_shard(&SCORES.read().unwrap()[shard])
+    };
+
     let rids: Vec<_> = ranks
         .iter()
         .enumerate()
