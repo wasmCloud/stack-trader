@@ -27,7 +27,7 @@ spec:
             - name: REDIS_URL
               value: redis://redis:6379
             - name: NATS_SUBSCRIPTION
-              value: decs.frames.*.leaderboard,decs.system.registry,get.decs.*.leaderboard,get.decs.*.leaderboard.*,access.decs.*.leaderboard,access.decs.*.leaderboard.*
+              value: decs.frames.*.shard_ldrboard,decs.system.registry,get.decs.*.leaderboard,get.decs.*.leaderboard.*,access.decs.*.leaderboard,access.decs.*.leaderboard.*
           image: stacktrader/leaderboard
           name: leaderboard
           ports:

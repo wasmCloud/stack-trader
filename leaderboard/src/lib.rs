@@ -31,7 +31,7 @@ call_handler!(handle_call);
 
 // const NO_MESSAGE: &str = "(no message)";
 const FRAMERATE: u32 = 1;
-const SYSTEM_NAME: &str = "leaderboard";
+const SYSTEM_NAME: &str = "shard_ldrboard";
 const WALLET: &str = "wallet";
 const REGISTRY_SUBJECT: &str = "decs.system.registry";
 
@@ -55,7 +55,7 @@ fn handle_message(
     if let Some(msg) = msg {
         if msg.subject == REGISTRY_SUBJECT {
             handle_ping(ctx, msg)
-        } else if msg.subject.starts_with("decs.frames.") && msg.subject.ends_with(".leaderboard") {
+        } else if msg.subject.starts_with("decs.frames.") && msg.subject.ends_with(".shard_ldrboard") {
             leaderboard::handle_frame(ctx, msg)
         } else {
             match ResProtocolRequest::from(msg.subject.as_str()) {
