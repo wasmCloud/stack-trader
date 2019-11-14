@@ -44,7 +44,6 @@ class Stacktrader extends Component {
       radar_receiver: { "radius": 25.0 },
       inventory: [],
       wallet: null,
-      isSelling: false,
       extractor: null,
       mining_resource_eta_ms: 0,
       recently_mined: null
@@ -61,6 +60,7 @@ class Stacktrader extends Component {
     } else {
       this.setState({ entity_id: "" })
     }
+    this.periodicReRender()
   }
 
   /**
@@ -81,7 +81,11 @@ class Stacktrader extends Component {
    */
   setTarget = (rid) => {
     if (rid === 'delete') {
-      this.setState({ target: null })
+      this.client.get(`decs.components.${this.state.shard}.${this.state.entity}.target`).then(target => {
+        this.client.call(`decs.components.${this.state.shard}.${this.state.entity}.target`, 'delete', target).then(_r => {
+          this.setState({ target: null })
+        })
+      })
       return
     }
     let init_target = {
@@ -113,10 +117,9 @@ class Stacktrader extends Component {
     let uz = Number.parseFloat(Math.cos(contact.elevation * Math.PI / 180))
 
     // Scale UX and UY components to each other (maxing one out at 1.0) and then to the ratio of xy distance vs total distance
-    let componentRatio = Math.abs(ux) > Math.abs(uy) ? 1.0 / Math.abs(ux) : 1.0 / Math.abs(uy);
-    let distanceRatio = (contact.distance_xy * contact.distance_xy) / (contact.distance * contact.distance)
-    ux = ux * componentRatio * distanceRatio
-    uy = uy * componentRatio * distanceRatio
+    let distanceRatio = contact.distance > 0 ? contact.distance_xy / contact.distance : 0
+    ux = ux * distanceRatio
+    uy = uy * distanceRatio
 
     // Setting magnitude to be at least 500, to start moving the player there
     let mag = this.state.velocity.mag === 0 ? 500 : this.state.velocity.mag
@@ -151,13 +154,6 @@ class Stacktrader extends Component {
         })
       })
     })
-  }
-
-  /**
-   * Initiate a merchant transaction to sell stacks
-   */
-  initiateTransaction = () => {
-    this.setState({ isSelling: true })
   }
 
   /**
@@ -209,6 +205,14 @@ class Stacktrader extends Component {
    */
   withinAsteroidRange = (asteroidContact) => {
     return asteroidContact.distance <= 5.0
+  }
+
+  /**
+   * To track other players, ensure proper rerender every 3s
+   */
+  periodicReRender = () => {
+    this.onUpdate()
+    setTimeout(() => this.periodicReRender(), 3000)
   }
 
   /**
@@ -353,7 +357,7 @@ class Stacktrader extends Component {
                 Inventory
               </CardHeader>
               <CardBody>
-                <Inventory inventory={Array.from(this.state.inventory)} wallet={this.state.wallet} isSelling={this.state.isSelling} withinStarbaseRange={this.withinStarbaseRange} sellItem={this.sellItem} />
+                <Inventory inventory={Array.from(this.state.inventory)} wallet={this.state.wallet} withinStarbaseRange={this.withinStarbaseRange} sellItem={this.sellItem} />
                 <br />
                 {this.state.extractor &&
                   <Progress animated className="mb-3"
@@ -378,17 +382,13 @@ class Stacktrader extends Component {
                       Targeting: {this.state.target_name}
                     </Row>
                     <Row>
-                      Distance:  {this.state.target.eta_ms > 0.0 || this.state.target.distance_km > 5.0 ? this.state.target.distance_km.toPrecision(2) + "km" : "Target within range"}
+                      Distance:  {this.state.target.eta_ms > 0.0 || this.state.target.distance_km > 5.0 ? this.state.target.distance_km.toPrecision(3) + "km" : "Target within range"}
                     </Row>
                     <Row>
-                      ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h/
-                      ${Math.floor(this.state.target.eta_ms / 1000 / 60)}m/
-                      ${(this.state.target.eta_ms / 1000).toPrecision(3) % 60}s`}
+                      ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h
+                      ${Math.floor(this.state.target.eta_ms / 1000 / 60)}m
+                      ${((this.state.target.eta_ms / 1000).toPrecision(3) % 60).toPrecision(3)}s`}
                     </Row>
-                    <Progress animated className="mb-3"
-                      color={this.state.target.eta_ms <= 0.0 && this.state.target.distance_km <= 5.0 ? "success" : "primary"}
-                      value={this.state.target.eta_ms <= 0.0 ? 100 : !this.state.initial_distance ? 0 :
-                        100 * (this.state.initial_distance - Number.parseFloat(this.state.target.distance_km)) / this.state.initial_distance} />
                   </Col>
                 </Row>
               </CardBody>
@@ -427,7 +427,7 @@ class Stacktrader extends Component {
             <Card className="card-accent-info">
               <CardHeader>
                 Radar Contacts
-                  </CardHeader>
+              </CardHeader>
               <CardBody>
                 <br />
                 <Table hover responsive striped size="sm">
@@ -442,8 +442,8 @@ class Stacktrader extends Component {
                     </tr>
                   </thead>
                   <tbody>
-                    {this.state.contacts && Array.from(this.state.contacts).sort((a, b) => a.distance - b.distance).map((contact, idx) =>
-                      <tr>
+                    {this.state.contacts && Array.from(this.state.contacts).filter(c => c.transponder).sort((a, b) => a.distance - b.distance).map((contact, _idx) =>
+                      <tr className={this.state.target && this.state.target.rid.split(".")[3] === contact.transponder._rid.split(".")[3] ? "table-success" : ""}>
                         <td className="text-center">
                           <div>
                             <span style={{
@@ -463,22 +463,14 @@ class Stacktrader extends Component {
                             <Button style={{ marginRight: '2px' }} color="success" size="sm" onClick={() => this.navigateToTarget(contact)}>Navigate</Button>
                             <Button style={{ marginRight: '2px' }} color="primary" size="sm" onClick={() => this.setTarget(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Target</Button>
                             {contact.transponder.object_type === "asteroid" &&
+                              this.withinAsteroidRange(contact) &&
                               <Button style={{ marginRight: '2px' }} color="warning" size="sm" onClick={() => {
-                                if (this.withinAsteroidRange(contact)) {
-                                  this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
+                                if (contact.transponder.display_name.includes("(depleted)")) {
+                                  toast.error("Resource has been depleted and cannot be mined")
                                 } else {
-                                  toast.error("Not close enough to asteroid to mine")
+                                  this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
                                 }
                               }}>Mine</Button>
-                            }
-                            {contact.transponder.object_type === "starbase" &&
-                              <Button style={{ marginRight: '2px' }} color="warning" size="sm" onClick={() => {
-                                if (this.withinStarbaseRange()) {
-                                  this.initiateTransaction()
-                                } else {
-                                  toast.error("Not close enough to starbase to sell")
-                                }
-                              }}>Sell</Button>
                             }
                           </Row>
                         </td>
@@ -515,7 +507,6 @@ class Stacktrader extends Component {
    * Helper function to load all player components and populate game state
    */
   loadPlayer = (entity_id, shard) => {
-    this.setState({ entity_id, shard })
     this.client.get(`decs.components.${shard}.${entity_id}.velocity`).then(velocity => {
       velocity.on('change', this.onUpdate)
       this.setState({ velocity })
@@ -524,10 +515,7 @@ class Stacktrader extends Component {
       position.on('change', this.onUpdate)
       this.setState({ position })
     })
-    this.client.get(`decs.components.${shard}.${entity_id}.radar_receiver`).then(radar_receiver => {
-      radar_receiver.on('change', this.onUpdate)
-      this.setState({ radar_receiver })
-    })
+
     this.client.get(`decs.components.${shard}.${entity_id}.wallet`).then(wallet => {
       wallet.on('change', this.onUpdate)
       this.setState({ wallet })
@@ -544,11 +532,20 @@ class Stacktrader extends Component {
       console.log(err)
     })
 
+    this.client.get(`decs.components.${shard}.${entity_id}.radar_receiver`).then(radar_receiver => {
+      radar_receiver.on('change', this.onUpdate)
+      this.setState({ radar_receiver })
+    }).catch(err => {
+      console.log(err)
+    })
+
     // Start polling for radar contacts
     this.setupRadarContacts(entity_id)
 
     // Start polling for player inventory
     this.setupInventory(entity_id)
+
+    this.setState({ entity_id, shard })
   }
 
   /**
@@ -572,13 +569,13 @@ class Stacktrader extends Component {
           this.client.call(`decs.components.${shard}.${entity_id}.position`, 'set', position).then(_res => {
             // Create radar_receiver component
             this.client.call(`decs.components.${shard}.${entity_id}.radar_receiver`, 'set', radar_receiver).then(_res => {
-              this.loadPlayer(entity_id, shard)
               // Create tranponder component so player can be visible to other players
               this.client.call(`decs.components.${shard}.${entity_id}.transponder`, 'set', {
                 color: "#63c2de",
                 display_name: `${entity_id}'s spaceship`,
                 object_type: "ship"
               })
+              this.loadPlayer(entity_id, shard)
             })
           })
         })
@@ -609,6 +606,7 @@ class Stacktrader extends Component {
             },
             extractor: null
           })
+          this.setTarget('delete')
           this.onUpdate()
         }
       })
@@ -628,7 +626,8 @@ class Stacktrader extends Component {
       contacts.on('remove', this.onUpdate)
       contacts.on('change', this.onUpdate)
       this.setState({ contacts })
-    }).catch(err => {
+      console.dir(Array.from(contacts))
+    }).catch(_err => {
       setTimeout(() => this.setupRadarContacts(entity), 1000)
     })
   }

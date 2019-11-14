@@ -235,23 +235,6 @@ pub(crate) fn handle_entity_position_change(
     Ok(vec![])
 }
 
-// /// Receives messages on the subject `event.decs.components.{shard}.{entity}.position.change`
-// /// Stores entity position in-memory in the POSITIONS HashMap
-// /// The cache is used later to discover nearby radar_contacts
-// pub(crate) fn handle_entity_position_change(
-//     _ctx: &CapabilitiesContext,
-//     msg: messaging::BrokerMessage,
-// ) -> CallResult {
-//     let subject: Vec<&str> = msg.subject.split('.').collect();
-//     let position_value: serde_json::Value = serde_json::from_slice(&msg.body)?;
-//     let position: Position = serde_json::from_value::<Position>(position_value["values"].clone())?;
-//     POSITIONS
-//         .write()
-//         .unwrap()
-//         .insert(subject[4].to_string(), position);
-//     Ok(vec![])
-// }
-
 /// Helper function to clean up determining if an entity is within a radius
 fn within_radius(entity: &Position, target: &Position, radius: f64) -> bool {
     entity.distance_to_3d(target) <= radius
