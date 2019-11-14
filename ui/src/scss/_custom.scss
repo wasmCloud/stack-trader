@@ -227,11 +227,9 @@ i.player-rocket:before {
 }
 
 input[type="range"] {
-  -webkit-appearance: none;
   background: transparent;
 }
 input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
   background: #20a8d8;
   height: 18px;
   width: 18px;

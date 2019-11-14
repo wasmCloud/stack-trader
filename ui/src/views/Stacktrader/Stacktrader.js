@@ -81,7 +81,11 @@ class Stacktrader extends Component {
    */
   setTarget = (rid) => {
     if (rid === 'delete') {
-      this.setState({ target: null })
+      this.client.get(`decs.components.${this.state.shard}.${this.state.entity}.target`).then(target => {
+        this.client.call(`decs.components.${this.state.shard}.${this.state.entity}.target`, 'delete', target).then(_r => {
+          this.setState({ target: null })
+        })
+      })
       return
     }
     let init_target = {
@@ -381,14 +385,10 @@ class Stacktrader extends Component {
                       Distance:  {this.state.target.eta_ms > 0.0 || this.state.target.distance_km > 5.0 ? this.state.target.distance_km.toPrecision(3) + "km" : "Target within range"}
                     </Row>
                     <Row>
-                      ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h/
-                      ${Math.floor(this.state.target.eta_ms / 1000 / 60)}m/
+                      ETA: {`${Math.floor(this.state.target.eta_ms / 1000 / 60 / 60)}h
+                      ${Math.floor(this.state.target.eta_ms / 1000 / 60)}m
                       ${((this.state.target.eta_ms / 1000).toPrecision(3) % 60).toPrecision(3)}s`}
                     </Row>
-                    <Progress animated className="mb-3"
-                      color={this.state.target.eta_ms <= 0.0 && this.state.target.distance_km <= 5.0 ? "success" : "primary"}
-                      value={this.state.target.eta_ms <= 0.0 ? 100 : !this.state.initial_distance ? 0 :
-                        100 * (this.state.initial_distance - Number.parseFloat(this.state.target.distance_km)) / this.state.initial_distance} />
                   </Col>
                 </Row>
               </CardBody>
@@ -442,8 +442,8 @@ class Stacktrader extends Component {
                     </tr>
                   </thead>
                   <tbody>
-                    {this.state.contacts && Array.from(this.state.contacts).sort((a, b) => a.distance - b.distance).map((contact, idx) =>
-                      <tr className={contact.transponder && this.state.target && this.state.target.rid.split(".")[3] === contact.transponder._rid.split(".")[3] ? "table-success" : ""}>
+                    {this.state.contacts && Array.from(this.state.contacts).filter(c => c.transponder).sort((a, b) => a.distance - b.distance).map((contact, _idx) =>
+                      <tr className={this.state.target && this.state.target.rid.split(".")[3] === contact.transponder._rid.split(".")[3] ? "table-success" : ""}>
                         <td className="text-center">
                           <div>
                             <span style={{
@@ -463,11 +463,12 @@ class Stacktrader extends Component {
                             <Button style={{ marginRight: '2px' }} color="success" size="sm" onClick={() => this.navigateToTarget(contact)}>Navigate</Button>
                             <Button style={{ marginRight: '2px' }} color="primary" size="sm" onClick={() => this.setTarget(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Target</Button>
                             {contact.transponder.object_type === "asteroid" &&
+                              this.withinAsteroidRange(contact) &&
                               <Button style={{ marginRight: '2px' }} color="warning" size="sm" onClick={() => {
-                                if (this.withinAsteroidRange(contact)) {
-                                  this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
+                                if (contact.transponder.display_name.includes("(depleted)")) {
+                                  toast.error("Resource has been depleted and cannot be mined")
                                 } else {
-                                  toast.error("Not close enough to asteroid to mine")
+                                  this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
                                 }
                               }}>Mine</Button>
                             }

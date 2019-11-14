@@ -1,13 +1,13 @@
 {
     "from": {
-        "x": -100,
-        "y": -100,
-        "z": -100
+        "x": -500,
+        "y": -500,
+        "z": -500
     },
     "to": {
-        "x": 100,
-        "y": 100,
-        "z": 100
+        "x": 500,
+        "y": 500,
+        "z": 500
     },
     "asteroid_adjs": [
         "Large",
@@ -17,16 +17,16 @@
         "Bright"
     ],
     "asteroid_colors": [
-        "#f79256",
-        "#fbd1a2",
-        "#7dcfb6",
-        "#1d4e89",
-        "#00b2ca"
+        "#9C3848",
+        "#FFAD69",
+        "#F5E663",
+        "#1E3888",
+        "#47A8BD"
     ],
     "starbase_color": "#d741a7",
-    "asteroids": 500,
+    "asteroids": 10000,
     "shard_name": "mainworld",
-    "shard_capacity": 10000,
+    "shard_capacity": 100000,
     "max_stack_qty": 20,
     "distribution": {
         "spendy": 0.4,

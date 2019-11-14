@@ -32,11 +32,7 @@ class Radar extends Component {
 
     deleteTarget = (event) => {
         if (event.target instanceof HTMLDivElement) {
-            this.props.client.get(`decs.components.${this.props.shard}.${this.props.entity}.target`).then(target => {
-                this.props.client.call(`decs.components.${this.props.shard}.${this.props.entity}.target`, 'delete', target).then(_r => {
-                    this.props.navigateToTarget('delete')
-                })
-            })
+            this.props.navigateToTarget('delete')
         }
     }
 

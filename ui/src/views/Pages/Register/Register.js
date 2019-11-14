@@ -82,7 +82,7 @@ class Register extends Component {
                           <i className="icon-user"></i>
                         </InputGroupText>
                       </InputGroupAddon>
-                      <Input type="text" placeholder="Username" autoComplete="username" value={this.state.username} onChange={(e) => this.setState({ username: e.target.value })} />
+                      <Input type="text" placeholder="Username" autoComplete="username" maxLength={32} value={this.state.username} onChange={(e) => this.setState({ username: e.target.value })} />
                     </InputGroup>
                     <InputGroup className="mb-3">
                       <InputGroupAddon addonType="prepend">
