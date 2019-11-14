@@ -240,4 +240,4 @@ services:
       - "RUST_LOG=warn,cranelift_wasm=warn"
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
-      - "NATS_SUBSCRIPTION=decs.frames.*.leaderboard,decs.system.registry,get.decs.*.leaderboard,get.decs.leaderboard.*,access.decs.*.leaderboard,access.decs.*.leaderboard.*"
+      - "NATS_SUBSCRIPTION=decs.frames.*.leaderboard,decs.system.registry,get.decs.*.leaderboard,get.decs.*.leaderboard.*,access.decs.*.leaderboard,access.decs.*.leaderboard.*"
