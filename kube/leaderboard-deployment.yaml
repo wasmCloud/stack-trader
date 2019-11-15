@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: leaderboard
+    game: stacktrader
+  name: leaderboard
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: leaderboard
+        game: stacktrader
+    spec:
+      containers:
+        - env:
+            - name: PORT
+              value: "9000"
+            - name: RUST_LOG
+              value: warn
+            - name: NATS_URL
+              value: nats://nats:4222
+            - name: REDIS_URL
+              value: redis://redis:6379
+            - name: NATS_SUBSCRIPTION
+              value: decs.frames.*.shard_ldrboard,decs.system.registry,get.decs.*.leaderboard,get.decs.*.leaderboard.*,access.decs.*.leaderboard,access.decs.*.leaderboard.*
+          image: stacktrader/leaderboard
+          name: leaderboard
+          ports:
+            - containerPort: 9000
+          resources: {}
+      restartPolicy: Always
+status: {}
