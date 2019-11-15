@@ -38,11 +38,11 @@ fn purge_leaderboard(
     shard: &str,
     rank_count: usize,
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    for i in 0..rank_count {
+    for _ in 0..rank_count {
         ctx.msg().publish(
             &format!("event.decs.{}.leaderboard.remove", shard),
             None,
-            &serde_json::to_vec(&json!({ "idx": i }))?,
+            &serde_json::to_vec(&json!({ "idx": 0 }))?,
         )?;
     }
     Ok(())
