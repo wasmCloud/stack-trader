@@ -151,15 +151,12 @@ pub(crate) fn handle_get_single(
     let idx: usize = tokens[3].parse()?; // decs.(shard).leaderboard.(idx)
     let shard = tokens[1];
     let ranks = rank_shard(SCORES.read().unwrap().get(shard));
-    let result = if idx < ranks.len() {
+    let result = 
         json!({
             "result": {
                 "model": ranks[idx]
             }
-        })
-    } else {
-        error_not_found("no such leaderboard entry")
-    };
+        });    
     ctx.msg()
         .publish(&msg.reply_to, None, &serde_json::to_vec(&result)?)?;
     Ok(vec![])
