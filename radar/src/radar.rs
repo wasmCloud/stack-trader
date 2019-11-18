@@ -64,16 +64,22 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
                 },
             );
 
-        let all_positions = POSITIONS.read().unwrap().clone();
-        let updates = radar_updates(
-            &frame.entity_id,
-            &frame.shard,
-            &position,
-            &radar_receiver,
-            &old_contacts,
-            &all_positions,
-            Some(&ctx),
-        );
+        let updates = {
+            let all_positions = POSITIONS.read().unwrap().clone();
+            radar_updates(
+                &frame.entity_id,
+                &frame.shard,
+                &position,
+                &radar_receiver,
+                &old_contacts,
+                &all_positions,
+                Some(&ctx),
+            )
+        };
+        POSITIONS
+            .write()
+            .unwrap()
+            .insert(frame.entity_id, position.clone());
 
         let _results = updates
             .iter()
@@ -105,6 +111,7 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
             .map(|(subject, payload)| publish_message(ctx, &subject, payload))
             .collect::<Vec<CallResult>>();
     }
+
     Ok(vec![])
 }
 
