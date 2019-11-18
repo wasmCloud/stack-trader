@@ -77,6 +77,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "#
     );
 
+    std::thread::sleep(breather_delay*3);
+
     create_shard(&client, &params)?;
 
     for x in 0..params.asteroids {
@@ -87,6 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Created {} asteroids in shard {}",
         params.asteroids, params.shard_name
     );
+    std::thread::sleep(breather_delay*3);
 
     create_starbase(&client, &params)?;
     println!("Created Starbase Alpha at (0,0,0)");
