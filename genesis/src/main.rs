@@ -201,6 +201,8 @@ fn create_component(
     rid: &str,
     raw: serde_json::Value,
 ) -> Result<(), Box<dyn Error>> {
+    let breather_delay = std::time::Duration::from_millis(10);
+    std::thread::sleep(breather_delay);
     let subject = format!("call.{}.set", rid);
 
     let payload = json!({ "params": raw });
