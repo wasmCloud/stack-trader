@@ -54,13 +54,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
     let mut f = File::open(opt.input)?;
     let mut buffer = Vec::new();
+    let breather_delay = std::time::Duration::from_millis(10);
 
     f.read_to_end(&mut buffer)?;
     let params: UniverseParameters = serde_json::from_slice(&buffer)?;
     let natsurl = env::var("NATS_URL")?;
 
     let opts = ClientOptions::builder()
-        .cluster_uris(vec![natsurl.into()])
+        .cluster_uris(vec![natsurl])
         .authentication(AuthenticationStyle::Anonymous)
         .build()?;
 
@@ -76,15 +77,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         "#
     );
 
+    std::thread::sleep(breather_delay*3);
+
     create_shard(&client, &params)?;
 
     for x in 0..params.asteroids {
         create_asteroid(&client, &params, x)?;
+        std::thread::sleep(breather_delay);
     }
     println!(
         "Created {} asteroids in shard {}",
         params.asteroids, params.shard_name
     );
+    std::thread::sleep(breather_delay*3);
 
     create_starbase(&client, &params)?;
     println!("Created Starbase Alpha at (0,0,0)");
@@ -199,6 +204,8 @@ fn create_component(
     rid: &str,
     raw: serde_json::Value,
 ) -> Result<(), Box<dyn Error>> {
+    let breather_delay = std::time::Duration::from_millis(10);
+    std::thread::sleep(breather_delay);
     let subject = format!("call.{}.set", rid);
 
     let payload = json!({ "params": raw });
