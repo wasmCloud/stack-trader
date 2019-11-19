@@ -55,7 +55,9 @@ fn handle_message(
     if let Some(msg) = msg {
         if msg.subject == REGISTRY_SUBJECT {
             handle_ping(ctx, msg)
-        } else if msg.subject.starts_with("decs.frames.") && msg.subject.ends_with(".shard_ldrboard") {
+        } else if msg.subject.starts_with("decs.frames.")
+            && msg.subject.ends_with(".shard_ldrboard")
+        {
             leaderboard::handle_frame(ctx, msg)
         } else {
             match ResProtocolRequest::from(msg.subject.as_str()) {
