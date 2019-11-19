@@ -101,10 +101,6 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
                 Some(&ctx),
             )
         };
-        POSITIONS
-            .write()
-            .unwrap()
-            .insert(frame.entity_id, position.clone());
 
         let _results = updates
             .iter()
@@ -135,6 +131,22 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
             })
             .map(|(subject, payload)| publish_message(ctx, &subject, payload))
             .collect::<Vec<CallResult>>();
+
+        // If we modified a player's contacts at all, publish a change message to make
+        // RESgate requery the source of truth.
+        if !updates.is_empty() {
+            ctx.msg().publish(
+                "system.reset",
+                None,
+                &serde_json::to_vec(&serde_json::json!({
+                    "resources":
+                        [format!(
+                            "decs.components.{}.{}.radar_contacts",
+                            frame.shard, frame.entity_id
+                        )]
+                }))?,
+            )?;
+        }
     }
 
     Ok(vec![])
@@ -212,20 +224,10 @@ fn radar_updates(
                 } else {
                     Some(RadarContactDelta::Remove(rid))
                 }
-            } else if entity_id != ent_id
-                && within_radius(current_position, &pos, radar_receiver.radius)
+            } else if (entity_id != ent_id
+                && within_radius(current_position, &pos, radar_receiver.radius))
+                || ent_id == "starbase_0"
             {
-                let vector_to = current_position.vector_to(pos);
-                let transponder = transponder_for_entity(shard, &ent_id.clone());
-                Some(RadarContactDelta::Add(RadarContact {
-                    entity_id: ent_id.clone().to_string(),
-                    distance: vector_to.mag,
-                    distance_xy: vector_to.distance_xy,
-                    azimuth: vector_to.azimuth,
-                    elevation: vector_to.elevation,
-                    transponder,
-                }))
-            } else if ent_id == "starbase_0" {
                 let vector_to = current_position.vector_to(pos);
                 let transponder = transponder_for_entity(shard, &ent_id.clone());
                 Some(RadarContactDelta::Add(RadarContact {
