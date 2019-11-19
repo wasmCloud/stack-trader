@@ -75,7 +75,6 @@ class Register extends Component {
                 <CardBody className="p-4">
                   <Form onSubmit={this.signup}>
                     <h1>Register</h1>
-                    <p className="text-muted">Keep in mind, your username may displayed on large TVs at the vendor booth. Please choose something appropriate for display.</p>
                     <InputGroup className="mb-3">
                       <InputGroupAddon addonType="prepend">
                         <InputGroupText>
