@@ -8,6 +8,10 @@ import {
   Row,
   Table,
   Button,
+  Modal,
+  ModalBody,
+  ModalHeader,
+  ModalFooter
 } from 'reactstrap';
 import { Redirect } from 'react-router-dom';
 import Radar from './Radar'
@@ -15,6 +19,8 @@ import Inventory from './Inventory'
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ResClient from 'resclient';
+
+const namor = require('namor')
 
 class Stacktrader extends Component {
   client;
@@ -46,7 +52,9 @@ class Stacktrader extends Component {
       wallet: null,
       extractor: null,
       mining_resource_eta_ms: 0,
-      recently_mined: null
+      recently_mined: null,
+      display_name: "",
+      tutorial: false
     };
   }
 
@@ -56,6 +64,7 @@ class Stacktrader extends Component {
     if (this.props.location.from === "login") {
       this.loadPlayer(entity_id, shard)
     } else if (this.props.location.from === "register") {
+      this.setState({ tutorial: true })
       this.initializePlayer(entity_id, shard)
     } else {
       this.setState({ entity_id: "" })
@@ -81,8 +90,8 @@ class Stacktrader extends Component {
    */
   setTarget = (rid) => {
     if (rid === 'delete') {
-      this.client.get(`decs.components.${this.state.shard}.${this.state.entity}.target`).then(target => {
-        this.client.call(`decs.components.${this.state.shard}.${this.state.entity}.target`, 'delete', target).then(_r => {
+      this.client.get(`decs.components.${this.state.shard}.${this.state.entity_id}.target`).then(target => {
+        this.client.call(`decs.components.${this.state.shard}.${this.state.entity_id}.target`, 'delete', target).then(_r => {
           this.setState({ target: null })
         })
       })
@@ -250,11 +259,31 @@ class Stacktrader extends Component {
       <div className="animated fadeIn">
         {this.redirectToLogin()}
         <ToastContainer position="top-right" autoClose={5000} style={{ zIndex: 1999 }} />
+        <Modal isOpen={this.state.tutorial} toggle={() => this.setState({ tutorial: false })}>
+          <ModalHeader toggle={this.toggle}>Welcome to StackTrader!</ModalHeader>
+          <ModalBody>
+            This game is a demonstration of WebAssembly Secure Capabilities Connector.
+            Your goal is to navigate around to asteroids in this universe and mine them to extract stacks. After you gather
+            some stacks, navigate to the Starbase in your Radar Contacts to sell your stacks and gain credits! On the TV
+            at the booth you can see if the amount of credits you have earns you a spot on the leaderboard.
+            <hr />
+            You can navigate around the universe by modifying the sliders under Velocity, or if you see something in your contacts
+            list you can automatically navigate to it by clicking / tapping the "Navigate" button. When you get in range of a starbase,
+            you can click the
+            <i className="cui-dollar icons font-2xl" style={{ color: `green` }}></i>
+            icon to sell your stacks. You can also clear your target by clicking / tapping an empty space on the radar.
+            <hr />
+            Just as a note, any data we use is solely to distinguish unique players and will be deleted after each demonstration period.
+          </ModalBody>
+          <ModalFooter>
+            <Button color="primary" onClick={() => this.setState({ tutorial: false })}>Close</Button>{' '}
+          </ModalFooter>
+        </Modal>
         <Row>
           <Col md="6">
             <Card className="card-accent-primary">
               <CardHeader>
-                {this.state.entity_id}
+                {this.state.entity_id} - {this.state.display_name}
               </CardHeader>
               <CardBody>
                 <Row style={{ marginRight: '0px', marginLeft: '0px' }}>
@@ -461,16 +490,12 @@ class Stacktrader extends Component {
                         <td>
                           <Row style={{ marginLeft: '0px', marginRight: '0px' }}>
                             <Button style={{ marginRight: '2px' }} color="success" size="sm" onClick={() => this.navigateToTarget(contact)}>Navigate</Button>
-                            <Button style={{ marginRight: '2px' }} color="primary" size="sm" onClick={() => this.setTarget(`decs.components.${this.state.shard}.${contact.entity_id}`)}>Target</Button>
                             {contact.transponder.object_type === "asteroid" &&
                               this.withinAsteroidRange(contact) &&
-                              <Button style={{ marginRight: '2px' }} color="warning" size="sm" onClick={() => {
-                                if (contact.transponder.display_name.includes("(depleted)")) {
-                                  toast.error("Resource has been depleted and cannot be mined")
-                                } else {
-                                  this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
-                                }
-                              }}>Mine</Button>
+                              !contact.transponder.display_name.includes("(depleted)") &&
+                              <Button style={{ marginRight: '2px' }} color="warning" size="sm" onClick={() =>
+                                this.extractResource(`decs.components.${this.state.shard}.${contact.entity_id}`)
+                              }>Mine</Button>
                             }
                           </Row>
                         </td>
@@ -539,6 +564,12 @@ class Stacktrader extends Component {
       console.log(err)
     })
 
+    this.client.get(`decs.components.${shard}.${entity_id}.transponder`).then(transponder => {
+      this.setState({ display_name: transponder.display_name })
+    }).catch(err => {
+      console.log(err)
+    })
+
     // Start polling for radar contacts
     this.setupRadarContacts(entity_id)
 
@@ -570,9 +601,10 @@ class Stacktrader extends Component {
             // Create radar_receiver component
             this.client.call(`decs.components.${shard}.${entity_id}.radar_receiver`, 'set', radar_receiver).then(_res => {
               // Create tranponder component so player can be visible to other players
+              let display_name = namor.generate({ words: 2 })
               this.client.call(`decs.components.${shard}.${entity_id}.transponder`, 'set', {
                 color: "#63c2de",
-                display_name: `${entity_id}'s spaceship`,
+                display_name,
                 object_type: "ship"
               })
               this.loadPlayer(entity_id, shard)
@@ -612,7 +644,7 @@ class Stacktrader extends Component {
       })
       this.setState({ inventory, extractor: null })
     }).catch(_err => {
-      setTimeout(() => this.setupInventory(entity_id), 1000)
+      setTimeout(() => this.setupInventory(entity_id), 5000)
     })
   }
 
@@ -626,7 +658,6 @@ class Stacktrader extends Component {
       contacts.on('remove', this.onUpdate)
       contacts.on('change', this.onUpdate)
       this.setState({ contacts })
-      console.dir(Array.from(contacts))
     }).catch(_err => {
       setTimeout(() => this.setupRadarContacts(entity), 1000)
     })

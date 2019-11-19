@@ -66,6 +66,35 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
 
         let updates = {
             let all_positions = POSITIONS.read().unwrap().clone();
+
+            // If the positions cache is ever empty, ensure that all previously existing entities
+            // are loaded into that cache
+            if all_positions.is_empty() {
+                let entities = ctx.kv().set_intersect(&vec![
+                    format!("decs:{}:transponder:entities", frame.shard),
+                    format!("decs:{}:position:entities", frame.shard),
+                ])?;
+                for entity in entities {
+                    if let Ok(Some(position_str)) = ctx.kv().get(&format!(
+                        "decs:components:{}:{}:position",
+                        frame.shard, entity
+                    )) {
+                        ctx.log(&format!(
+                            "Adding entity {} at position {} to the cache",
+                            entity, position_str
+                        ));
+                        POSITIONS
+                            .write()
+                            .unwrap()
+                            .insert(entity, serde_json::from_str(&position_str)?);
+                    }
+                }
+                ctx.log(&format!(
+                    "Cache repleted with {} entities",
+                    POSITIONS.read().unwrap().len()
+                ));
+            }
+
             radar_updates(
                 &frame.entity_id,
                 &frame.shard,
