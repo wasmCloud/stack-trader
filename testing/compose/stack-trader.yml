@@ -224,12 +224,12 @@ services:
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=decs.frames.*.merchant, decs.system.registry"
-   leaderboard:
+  leaderboard:
     image: stacktrader/leaderboard
     expose:
-      - "9010"
+      - "9011"
     ports:
-      - "9010:9010"
+      - "9011:9011"
     links:
       - nats
       - redis
@@ -240,4 +240,4 @@ services:
       - "RUST_LOG=warn,cranelift_wasm=warn"
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
-      - "NATS_SUBSCRIPTION=decs.frames.*.leaderboard,decs.system.registry,get.decs.*.leaderboard,get.decs.*.leaderboard.*,access.decs.*.leaderboard,access.decs.*.leaderboard.*"
+      - "NATS_SUBSCRIPTION=decs.frames.*.shard_ldrboard,decs.system.registry,get.decs.*.leaderboard,get.decs.*.leaderboard.*,access.decs.*.leaderboard,access.decs.*.leaderboard.*"

@@ -5,10 +5,19 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 use trader::components::*;
 
-#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 struct LeaderBoardEntry {
     pub player: String,
     pub amount: i32,
+}
+
+impl Default for LeaderBoardEntry {
+    fn default() -> Self {
+        LeaderBoardEntry {
+            player: "Nobody".to_string(),
+            amount: 0,
+        }
+    }
 }
 
 lazy_static! {
@@ -19,49 +28,30 @@ pub(crate) fn handle_frame(ctx: &CapabilitiesContext, msg: messaging::BrokerMess
     let frame: decs::systemmgr::EntityFrame = serde_json::from_slice(&msg.body)?;
 
     let wallet = get_wallet(ctx, &frame.shard, &frame.entity_id)?;
-    let old_ranks = if !SCORES.read().unwrap().contains_key(&frame.shard) {
-        vec![]
-    } else {
-        rank_shard(&SCORES.read().unwrap()[&frame.shard])
-    };
-    purge_leaderboard(ctx, &frame.shard, old_ranks.len())?;
-
+    let old_ranks = rank_shard(SCORES.read().unwrap().get(&frame.shard));
     put_score(&frame.shard, &frame.entity_id, wallet.credits)?;
-    let new_ranks = rank_shard(&SCORES.read().unwrap()[&frame.shard]);
-    publish_leaderboard(ctx, &frame.shard, &new_ranks)?;
+    let new_ranks = rank_shard(SCORES.read().unwrap().get(&frame.shard));
+    publish_changes(ctx, &frame.shard, &old_ranks, &new_ranks)?;
 
     Ok(vec![])
 }
 
-fn purge_leaderboard(
+fn publish_changes(
     ctx: &CapabilitiesContext,
     shard: &str,
-    rank_count: usize,
+    old: &[LeaderBoardEntry],
+    new: &[LeaderBoardEntry],
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    for _ in 0..rank_count {
-        ctx.msg().publish(
-            &format!("event.decs.{}.leaderboard.remove", shard),
-            None,
-            &serde_json::to_vec(&json!({ "idx": 0 }))?,
-        )?;
-    }
-    Ok(())
-}
-
-fn publish_leaderboard(
-    ctx: &CapabilitiesContext,
-    shard: &str,
-    ranks: &[LeaderBoardEntry],
-) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    for (i, _rank) in ranks.iter().enumerate() {
-        ctx.msg().publish(
-            &format!("event.decs.{}.leaderboard.add", shard),
-            None,
-            &serde_json::to_vec(&json!({
-                "value": ResourceIdentifier { rid: format!("decs.{}.leaderboard.{}", shard, i)},
-                "idx": i
-            }))?,
-        )?;
+    for i in 0..old.len() {
+        if old[i] != new[i] {
+            ctx.msg().publish(
+                &format!("event.decs.{}.leaderboard.{}.change", shard, i),
+                None,
+                &serde_json::to_vec(&json!({
+                    "values": new[i]
+                }))?,
+            )?;
+        }
     }
     Ok(())
 }
@@ -97,16 +87,31 @@ fn get_wallet(
     }
 }
 
-fn rank_shard(shardmap: &HashMap<String, i32>) -> Vec<LeaderBoardEntry> {
-    let mut entries: Vec<_> = shardmap
-        .iter()
-        .map(|(k, v)| LeaderBoardEntry {
-            player: k.clone(),
-            amount: *v,
-        })
-        .collect();
-    entries.sort_by(|a, b| b.amount.cmp(&a.amount));
-    entries
+// Rank all players according to their score, then return the top 10
+// if there are less than 10 players with scores, fill the remaining slots
+// with "Nobody"
+fn rank_shard(shardmap: Option<&HashMap<String, i32>>) -> Vec<LeaderBoardEntry> {
+    match shardmap {
+        Some(shardmap) => {
+            let mut entries: Vec<_> = shardmap
+                .iter()
+                .map(|(k, v)| LeaderBoardEntry {
+                    player: k.clone(),
+                    amount: *v,
+                })
+                .collect();
+            entries.sort_by(|a, b| b.amount.cmp(&a.amount));
+
+            let mut leaderboard: Vec<LeaderBoardEntry> = entries.into_iter().take(10).collect();
+            for _i in 0..10 - leaderboard.len() {
+                leaderboard.push(LeaderBoardEntry::default())
+            }
+            leaderboard
+        }
+        None => std::iter::repeat(LeaderBoardEntry::default())
+            .take(10)
+            .collect(),
+    }
 }
 
 pub(crate) fn handle_get_collection(
@@ -117,12 +122,7 @@ pub(crate) fn handle_get_collection(
     let tokens: Vec<_> = rid.split('.').collect();
     let shard = tokens[1]; // decs.(shard).leaderboard
 
-    // Return an empty collection if there are no scores in this shard yet
-    let ranks = if !SCORES.read().unwrap().contains_key(shard) {
-        vec![]
-    } else {
-        rank_shard(&SCORES.read().unwrap()[shard])
-    };
+    let ranks = rank_shard(SCORES.read().unwrap().get(shard));
 
     let rids: Vec<_> = ranks
         .iter()
@@ -150,50 +150,14 @@ pub(crate) fn handle_get_single(
     let tokens: Vec<_> = rid.split('.').collect();
     let idx: usize = tokens[3].parse()?; // decs.(shard).leaderboard.(idx)
     let shard = tokens[1];
-    let ranks = rank_shard(&SCORES.read().unwrap()[shard]);
-    let result = if idx < ranks.len() {
+    let ranks = rank_shard(SCORES.read().unwrap().get(shard));
+    let result = 
         json!({
             "result": {
                 "model": ranks[idx]
             }
-        })
-    } else {
-        error_not_found("no such leaderboard entry")
-    };
+        });    
     ctx.msg()
         .publish(&msg.reply_to, None, &serde_json::to_vec(&result)?)?;
     Ok(vec![])
-}
-
-#[cfg(test)]
-mod test {
-    use super::rank_shard;
-    use super::LeaderBoardEntry;
-    use std::collections::HashMap;
-
-    #[test]
-    fn test_simple_rank() {
-        let mut ranks = HashMap::new();
-        ranks.insert("bob".to_string(), 200);
-        ranks.insert("al".to_string(), 300);
-        ranks.insert("bobfred".to_string(), 500);
-
-        assert_eq!(
-            rank_shard(&ranks),
-            vec![
-                LeaderBoardEntry {
-                    player: "bobfred".to_string(),
-                    amount: 500
-                },
-                LeaderBoardEntry {
-                    player: "al".to_string(),
-                    amount: 300
-                },
-                LeaderBoardEntry {
-                    player: "bob".to_string(),
-                    amount: 200
-                }
-            ]
-        );
-    }
 }
