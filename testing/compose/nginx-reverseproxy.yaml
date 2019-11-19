@@ -240,9 +240,9 @@ services:
   leaderboard:
     image: stacktrader/leaderboard
     expose:
-      - "9010"
+      - "9020"
     ports:
-      - "9010:9010"
+      - "9020:9020"
     links:
       - nats
       - redis
