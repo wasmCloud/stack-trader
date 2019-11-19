@@ -25,6 +25,18 @@ services:
       - "RESGATE_HOST=http://resgate:8080"
     depends_on:
       - resgate
+      - nats
+  dashboard:
+    image: "decscloud/dashboard"
+    expose:
+      - "9091"
+    ports:
+      - "9091:9090"
+    environment:
+      - "RESGATE_HOST=http://resgate:8080"
+    depends_on:
+      - resgate
+      - nats
   nats:
     image: "nats:2.0.0"
     expose:
@@ -225,3 +237,20 @@ services:
       - "NATS_URL=nats://nats:4222"
       - "REDIS_URL=redis://redis:6379"
       - "NATS_SUBSCRIPTION=decs.frames.*.merchant, decs.system.registry"
+  leaderboard:
+    image: stacktrader/leaderboard
+    expose:
+      - "9010"
+    ports:
+      - "9010:9010"
+    links:
+      - nats
+      - redis
+    depends_on:
+      - nats
+      - redis
+    environment:
+      - "RUST_LOG=warn,cranelift_wasm=warn"
+      - "NATS_URL=nats://nats:4222"
+      - "REDIS_URL=redis://redis:6379"
+      - "NATS_SUBSCRIPTION=decs.frames.*.leaderboard,decs.system.registry,get.decs.*.leaderboard,get.decs.*.leaderboard.*,access.decs.*.leaderboard,access.decs.*.leaderboard.*"
