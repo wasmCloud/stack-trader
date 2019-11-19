@@ -8,7 +8,8 @@ members = [
     "mining",
     "genesis",
     "merchant",
-    "leaderboard"
+    "leaderboard",
+    "bouncer"
 ]
 
 [profile.release]
